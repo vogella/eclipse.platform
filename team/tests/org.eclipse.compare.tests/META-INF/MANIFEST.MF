@@ -24,8 +24,7 @@ Bundle-ActivationPolicy: lazy
 Bundle-Vendor: %providerName
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-Localization: plugin
-Export-Package: org.eclipse.compare.tests,
- org.eclipse.compare.tests.performance
+Export-Package: org.eclipse.compare.tests
 Eclipse-BundleShape: dir
 Automatic-Module-Name: org.eclipse.compare.tests
 Require-Capability: eclipse.swt;filter:="(image.format=svg)"

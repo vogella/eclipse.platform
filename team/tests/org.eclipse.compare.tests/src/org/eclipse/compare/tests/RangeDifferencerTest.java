@@ -11,7 +11,7 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-package org.eclipse.compare.tests.performance;
+package org.eclipse.compare.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
