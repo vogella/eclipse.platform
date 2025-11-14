@@ -20,7 +20,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.core.runtime.SubProgressMonitor;
+import org.eclipse.core.runtime.SubMonitor;
 import org.eclipse.team.core.ITeamStatus;
 import org.eclipse.team.core.TeamException;
 import org.eclipse.team.core.TeamStatus;
@@ -112,15 +112,48 @@ public class SubscriberSyncInfoEventHandler extends SubscriberEventHandler {
 
 		monitor.beginTask(null, IProgressMonitor.UNKNOWN);
 		try {
+			SubMonitor subMonitor = SubMonitor.convert(monitor, IProgressMonitor.UNKNOWN);
 
 			// Create a monitor that will handle preemption and dispatch if required
-			IProgressMonitor collectionMonitor = new SubProgressMonitor(monitor, IProgressMonitor.UNKNOWN) {
+			IProgressMonitor collectionMonitor = new IProgressMonitor() {
 				boolean dispatching = false;
+
+				@Override
+				public void beginTask(String name, int totalWork) {
+					subMonitor.setTaskName(name);
+				}
+
+				@Override
+				public void done() {
+					subMonitor.done();
+				}
+
+				@Override
+				public void internalWorked(double work) {
+					subMonitor.internalWorked(work);
+				}
+
+				@Override
+				public boolean isCanceled() {
+					return subMonitor.isCanceled();
+				}
+
+				@Override
+				public void setCanceled(boolean value) {
+					subMonitor.setCanceled(value);
+				}
+
+				@Override
+				public void setTaskName(String name) {
+					subMonitor.setTaskName(name);
+				}
+
 				@Override
 				public void subTask(String name) {
 					dispatch();
-					super.subTask(name);
+					subMonitor.subTask(name);
 				}
+
 				private void dispatch() {
 					if (dispatching) {
 						return;
@@ -133,10 +166,11 @@ public class SubscriberSyncInfoEventHandler extends SubscriberEventHandler {
 						dispatching = false;
 					}
 				}
+
 				@Override
 				public void worked(int work) {
 					dispatch();
-					super.worked(work);
+					subMonitor.worked(work);
 				}
 			};
 
