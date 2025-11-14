@@ -40,6 +40,9 @@ import org.eclipse.core.internal.expressions.Expressions;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 public class ExpressionTestsPluginUnloading {
 
+	private static final String ANT_CORE_BUNDLE_ID = "org.eclipse.ant.core";
+	private static final String ANT_RUNNER_CLASS_NAME = "org.eclipse.ant.core.AntRunner";
+
 	private String name;
 
 	@BeforeEach
@@ -49,7 +52,7 @@ public class ExpressionTestsPluginUnloading {
 
 	@Test
 	public void test01PluginStopping() throws Exception {
-		Bundle bundle= getBundle("org.eclipse.ant.core");
+		Bundle bundle= getBundle(ANT_CORE_BUNDLE_ID);
 		bundle.start();
 		int state = bundle.getState();
 		assertThat(state).withFailMessage("Unexpected bundle state: " + stateToString(state) + " for bundle " + bundle)
@@ -75,10 +78,10 @@ public class ExpressionTestsPluginUnloading {
 	@Test
 	public void test02MultipleClassloaders() throws Exception {
 		Bundle expr= getBundle("org.eclipse.core.expressions.tests");
-		Bundle ant= getBundle("org.eclipse.ant.core");
+		Bundle ant= getBundle(ANT_CORE_BUNDLE_ID);
 
-		Class<?> exprClass = expr.loadClass("org.eclipse.ant.core.AntRunner");
-		Class<?> antClass = ant.loadClass("org.eclipse.ant.core.AntRunner");
+		Class<?> exprClass = expr.loadClass(ANT_RUNNER_CLASS_NAME);
+		Class<?> antClass = ant.loadClass(ANT_RUNNER_CLASS_NAME);
 		assertThat(exprClass).isNotSameAs(antClass);
 
 		Object exprObj = exprClass.getDeclaredConstructor().newInstance();
@@ -126,9 +129,9 @@ public class ExpressionTestsPluginUnloading {
 	}
 
 	private void doTestInstanceofAntRunner(Bundle bundle) throws Exception {
-		Class<?> clazz = bundle.loadClass("org.eclipse.ant.core.AntRunner");
+		Class<?> clazz = bundle.loadClass(ANT_RUNNER_CLASS_NAME);
 		Object antRunner = clazz.getDeclaredConstructor().newInstance();
-		assertInstanceOf(antRunner, "org.eclipse.ant.core.AntRunner", "java.lang.Runnable");
+		assertInstanceOf(antRunner, ANT_RUNNER_CLASS_NAME, "java.lang.Runnable");
 	}
 
 	private static Bundle getBundle(String bundleName) {
