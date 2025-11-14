@@ -87,8 +87,8 @@ public class ExpressionTestsPluginUnloading {
 		assertInstanceOf(exprObj, "java.lang.Runnable", "java.lang.String");
 		assertInstanceOf(exprObj, "java.io.Serializable", "org.eclipse.equinox.app.IApplication");
 
-		assertInstanceOf(antObj, "org.eclipse.equinox.app.IApplication", "java.lang.String");
-		assertInstanceOf(antObj, "java.lang.Object", "java.lang.Runnable");
+		assertInstanceOf(antObj, "org.eclipse.equinox.app.IApplication", "java.lang.Runnable");
+		assertInstanceOf(antObj, "java.lang.Object", "java.io.Serializable");
 	}
 
 	static String stateToString(int state) {
