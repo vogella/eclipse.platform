@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2008 IBM Corporation and others.
+ * Copyright (c) 2000, 2025 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -13,7 +13,6 @@
  *******************************************************************************/
 package org.eclipse.compare.examples.xml;
 
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,10 +24,8 @@ import org.eclipse.compare.CompareUI;
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExtensionRegistry;
-import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.ListenerList;
 import org.eclipse.core.runtime.Platform;
-import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.swt.widgets.Control;
@@ -72,13 +69,13 @@ public final class XMLPlugin extends AbstractUIPlugin {
 	private static XMLPlugin fgXMLPlugin;
 	private IPreferenceStore fPrefStore;
 
-	private HashMap fIdMapsInternal;
-	private HashMap fIdMaps;
-	private HashMap fIdExtensionToName;
-	private HashMap fOrderedElementsInternal;
-	private HashMap fOrderedElements;
+	private HashMap<String, HashMap<String, String>> fIdMapsInternal;
+	private HashMap<String, HashMap<String, String>> fIdMaps;
+	private HashMap<String, String> fIdExtensionToName;
+	private HashMap<String, ArrayList<String>> fOrderedElementsInternal;
+	private HashMap<String, ArrayList<String>> fOrderedElements;
 
-	private final ListenerList fViewers= new ListenerList();
+	private final ListenerList<XMLStructureViewer> fViewers = new ListenerList<>();
 
 
 	/**
@@ -114,12 +111,8 @@ public final class XMLPlugin extends AbstractUIPlugin {
 
 		URL installURL= fgXMLPlugin.getBundle().getEntry("/"); //$NON-NLS-1$
 		if (installURL != null) {
-			try {
-				URL url= new URL(installURL, "icons/full/" + relativePath); //$NON-NLS-1$
-				return ImageDescriptor.createFromURL(url);
-			} catch (MalformedURLException e) {
-				Assert.isTrue(false);
-			}
+			URL url = fgXMLPlugin.getBundle().getEntry("/icons/full/" + relativePath); //$NON-NLS-1$
+			return ImageDescriptor.createFromURL(url);
 		}
 		return null;
 	}
@@ -137,8 +130,8 @@ public final class XMLPlugin extends AbstractUIPlugin {
 	 * Reads the Preference Store associated with XMLPlugin and initializes ID Mappings.
 	 */
 	public void initPrefStore() {
-		fIdMaps = new HashMap();
-		fIdExtensionToName= new HashMap();
+		fIdMaps = new HashMap<>();
+		fIdExtensionToName = new HashMap<>();
 		fPrefStore = getPreferenceStore();
 		String IdMapPrefValue = fPrefStore.getString(IDMAP_PREFERENCE_NAME);
 		int start = 0;
@@ -164,10 +157,10 @@ public final class XMLPlugin extends AbstractUIPlugin {
 			}
 
 			if (fIdMaps.containsKey(IdMapName)) {
-				HashMap Mappings = (HashMap) fIdMaps.get(IdMapName);
+				HashMap<String, String> Mappings = fIdMaps.get(IdMapName);
 				Mappings.put(IdMapSignature,IdMapAttribute);
 			} else {
-				HashMap Mappings = new HashMap();
+				HashMap<String, String> Mappings = new HashMap<>();
 				Mappings.put(IdMapSignature,IdMapAttribute);
 				fIdMaps.put(IdMapName,Mappings);
 			}
@@ -175,17 +168,17 @@ public final class XMLPlugin extends AbstractUIPlugin {
 			end = IdMapPrefValue.indexOf(IDMAP_SEPARATOR,end+1);
 		}
 
-		fOrderedElements= new HashMap();
+		fOrderedElements = new HashMap<>();
 		String OrderedPrefValue= fPrefStore.getString(ORDERED_PREFERENCE_NAME);
 		StringTokenizer orderedTokens= new StringTokenizer(OrderedPrefValue, (Character.valueOf(ORDERED_FIELDS_SEPARATOR)).toString());
 		while (orderedTokens.hasMoreTokens()) {
 			String IdMapName= orderedTokens.nextToken();
 			String signature= orderedTokens.nextToken();
 			if (fOrderedElements.containsKey(IdMapName)) {
-				ArrayList idmapAL= (ArrayList) fOrderedElements.get(IdMapName);
+				ArrayList<String> idmapAL = fOrderedElements.get(IdMapName);
 				idmapAL.add(signature);
 			} else {
-				ArrayList idmapAL= new ArrayList();
+				ArrayList<String> idmapAL = new ArrayList<>();
 				idmapAL.add(signature);
 				fOrderedElements.put(IdMapName, idmapAL);
 			}
@@ -199,34 +192,31 @@ public final class XMLPlugin extends AbstractUIPlugin {
 	 * @param IdExtensionToName the new IdExtensionToName mappings
 	 * @param refresh whether all the open StructureViewers should be refreshed with the new IdMapping settings
 	 */
-	public void setIdMaps(HashMap IdMap, HashMap IdExtensionToName, HashMap OrderedElements, boolean refresh) {
+	public void setIdMaps(HashMap<String, HashMap<String, String>> IdMap, HashMap<String, String> IdExtensionToName, HashMap<String, ArrayList<String>> OrderedElements, boolean refresh) {
 		fIdMaps = IdMap;
 		if (IdExtensionToName != null && !IdExtensionToName.equals(fIdExtensionToName)) {
 			CompareUI.removeAllStructureViewerAliases(DEFAULT_PREFIX);
 			fIdExtensionToName= IdExtensionToName;
-			Set newkeySet= fIdExtensionToName.keySet();
-			for (Iterator iter= newkeySet.iterator(); iter.hasNext(); ) {
-				String extension= (String)iter.next();
+			Set<String> newkeySet= fIdExtensionToName.keySet();
+			for (String extension : newkeySet) {
 				CompareUI.addStructureViewerAlias(DEFAULT_PREFIX, extension);
 			}
 		}
 		StringBuilder IdMapPrefValue = new StringBuilder();
-		Set idmapKeys = fIdMaps.keySet();
-		for (Iterator iter_idmap = idmapKeys.iterator(); iter_idmap.hasNext(); ) {
-			String IdMapName = (String) iter_idmap.next();
-			HashMap idmapHM = (HashMap) fIdMaps.get(IdMapName);
-			Set mappingKeys = idmapHM.keySet();
+		Set<String> idmapKeys = fIdMaps.keySet();
+		for (String IdMapName : idmapKeys) {
+			HashMap<String, String> idmapHM = fIdMaps.get(IdMapName);
+			Set<String> mappingKeys = idmapHM.keySet();
 			String extension= ""; //$NON-NLS-1$
 			if (fIdExtensionToName.containsValue(IdMapName)) {
-				Set keySet= fIdExtensionToName.keySet();
-				for (Iterator iter= keySet.iterator(); iter.hasNext(); ) {
-					extension= (String)iter.next();
-					if ( ((String)fIdExtensionToName.get(extension)).equals(IdMapName) )
+				Set<String> keySet= fIdExtensionToName.keySet();
+				for (Iterator<String> iter= keySet.iterator(); iter.hasNext(); ) {
+					extension= iter.next();
+					if ( fIdExtensionToName.get(extension).equals(IdMapName) )
 						break;
 				}
 			}
-			for (Iterator iter_mapping = mappingKeys.iterator(); iter_mapping.hasNext(); ) {
-				String signature = (String) iter_mapping.next();
+			for (String signature : mappingKeys) {
 				IdMapPrefValue.append(IdMapName+IDMAP_FIELDS_SEPARATOR+signature+IDMAP_FIELDS_SEPARATOR+idmapHM.get(signature)+IDMAP_FIELDS_SEPARATOR+extension+IDMAP_SEPARATOR);
 			}
 		}
@@ -237,12 +227,10 @@ public final class XMLPlugin extends AbstractUIPlugin {
 		if (OrderedElements != null) {
 			fOrderedElements= OrderedElements;
 			StringBuilder OrderedPrefValue= new StringBuilder();
-			Set orderedKeys= fOrderedElements.keySet();
-			for (Iterator iter_ordered= orderedKeys.iterator(); iter_ordered.hasNext();) {
-				String IdMapName= (String) iter_ordered.next();
-				ArrayList idmapAL= (ArrayList) fOrderedElements.get(IdMapName);
-				for (Iterator iter_idmapAL= idmapAL.iterator(); iter_idmapAL.hasNext();) {
-					String signature= (String) iter_idmapAL.next();
+			Set<String> orderedKeys= fOrderedElements.keySet();
+			for (String IdMapName : orderedKeys) {
+				ArrayList<String> idmapAL = fOrderedElements.get(IdMapName);
+				for (String signature : idmapAL) {
 					OrderedPrefValue.append(IdMapName+ORDERED_FIELDS_SEPARATOR+signature+ORDERED_FIELDS_SEPARATOR);
 				}
 			}
@@ -251,32 +239,30 @@ public final class XMLPlugin extends AbstractUIPlugin {
 		}
 
 		if (refresh) {
-			Object[] viewers = fViewers.getListeners();
-			for (int i = 0; i < viewers.length; ++i) {
-				XMLStructureViewer viewer = (XMLStructureViewer) viewers[i];
+			for (XMLStructureViewer viewer : fViewers) {
 				viewer.updateIdMaps();
 				viewer.contentChanged();
 			}
 		}
 	}
 
-	public HashMap getIdMaps() {
+	public HashMap<String, HashMap<String, String>> getIdMaps() {
 		return fIdMaps;
 	}
 
-	public HashMap getIdMapsInternal() {
+	public HashMap<String, HashMap<String, String>> getIdMapsInternal() {
 		return fIdMapsInternal;
 	}
 
-	public HashMap getIdExtensionToName() {
+	public HashMap<String, String> getIdExtensionToName() {
 		return fIdExtensionToName;
 	}
 
-	public HashMap getOrderedElements() {
+	public HashMap<String, ArrayList<String>> getOrderedElements() {
 		return fOrderedElements;
 	}
 
-	public HashMap getOrderedElementsInternal() {
+	public HashMap<String, ArrayList<String>> getOrderedElementsInternal() {
 		return fOrderedElementsInternal;
 	}
 
@@ -289,15 +275,15 @@ public final class XMLPlugin extends AbstractUIPlugin {
 
 		// collect all Id Mappings
 		IConfigurationElement[] idmaps= registry.getConfigurationElementsFor(PLUGIN_ID, ID_MAPPING_EXTENSION_POINT);
-		fIdMapsInternal = new HashMap();
-		fOrderedElementsInternal= new HashMap();
+		fIdMapsInternal = new HashMap<>();
+		fOrderedElementsInternal= new HashMap<>();
 		for (IConfigurationElement idmap : idmaps) {
 			//handle IDMAP_NAME_ATTRIBUTE
 			String idmap_name= idmap.getAttribute(IDMAP_NAME_ATTRIBUTE);
 			//ignores idmap if its name equals the reserved name for unordered matching or the the name for ordered matching
 			if ( !idmap_name.equals(XMLStructureCreator.USE_UNORDERED) && !idmap_name.equals(XMLStructureCreator.USE_ORDERED) ) {
 				//handle mappings
-				HashMap idmapHM = new HashMap();
+				HashMap<String, String> idmapHM = new HashMap<>();
 				fIdMapsInternal.put(idmap_name, idmapHM);
 				IConfigurationElement[] mappings = idmap.getChildren(MAPPING_ELEMENT_NAME);
 				for (IConfigurationElement mapping : mappings) {
@@ -318,7 +304,7 @@ public final class XMLPlugin extends AbstractUIPlugin {
 				//handles ordered entries
 				IConfigurationElement[] orderedEntries= idmap.getChildren(ORDERED_ELEMENT_NAME);
 				if (orderedEntries.length > 0) {
-					ArrayList orderedAL= new ArrayList();
+					ArrayList<String> orderedAL = new ArrayList<>();
 					for (IConfigurationElement ordered : orderedEntries) {
 						//add SIGN_SEPARATOR at the end because not contained in signatures of plugin.xml
 						//also add prefix at beginning
@@ -340,7 +326,7 @@ public final class XMLPlugin extends AbstractUIPlugin {
 		}
 	}
 
-	public ListenerList getViewers() {
+	public ListenerList<XMLStructureViewer> getViewers() {
 		return fViewers;
 	}
 
@@ -373,8 +359,8 @@ public final class XMLPlugin extends AbstractUIPlugin {
 		Control shell= display.getActiveShell();
 		while (shell != null) {
 			Object data= shell.getData();
-			if (data instanceof IWorkbenchWindow) {
-				windowRef.window= (IWorkbenchWindow)data;
+			if (data instanceof IWorkbenchWindow wWindow) {
+				windowRef.window = wWindow;
 				return;
 			}
 			shell= shell.getParent();
@@ -382,19 +368,11 @@ public final class XMLPlugin extends AbstractUIPlugin {
 		Shell shells[]= display.getShells();
 		for (Shell s : shells) {
 			Object data = s.getData();
-			if (data instanceof IWorkbenchWindow) {
-				windowRef.window= (IWorkbenchWindow)data;
+			if (data instanceof IWorkbenchWindow wWindow) {
+				windowRef.window = wWindow;
 				return;
 			}
 		}
-	}
-
-	public static void log(Throwable e) {
-		log(new Status(IStatus.ERROR, getPluginId(), IStatus.ERROR, "Internal Error", e)); //$NON-NLS-1$
-	}
-
-	public static void log(IStatus status) {
-		getDefault().getLog().log(status);
 	}
 
 	public static String getPluginId() {

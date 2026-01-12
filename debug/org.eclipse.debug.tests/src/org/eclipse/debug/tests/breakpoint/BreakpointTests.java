@@ -13,10 +13,11 @@
  *******************************************************************************/
 package org.eclipse.debug.tests.breakpoint;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,21 +29,23 @@ import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.internal.core.BreakpointManager;
 import org.eclipse.debug.internal.ui.DebugUIPlugin;
 import org.eclipse.debug.internal.ui.views.breakpoints.BreakpointsView;
-import org.eclipse.debug.tests.AbstractDebugTest;
+import org.eclipse.debug.tests.DebugTestExtension;
 import org.eclipse.debug.tests.TestUtil;
 import org.eclipse.debug.ui.DebugUITools;
 import org.eclipse.debug.ui.IDebugUIConstants;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.PlatformUI;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-public class BreakpointTests extends AbstractDebugTest {
+@ExtendWith(DebugTestExtension.class)
+public class BreakpointTests {
 
 	private final IBreakpointManager bpm = DebugPlugin.getDefault().getBreakpointManager();
 
-	@Override
+	@AfterEach
 	public void tearDown() throws Exception {
-		super.tearDown();
 		for (IBreakpoint bp : getTestBreakpoints()) {
 			bp.delete();
 		}
@@ -76,7 +79,7 @@ public class BreakpointTests extends AbstractDebugTest {
 			viewVisible = false;
 			view = ((BreakpointsView) DebugUIPlugin.getActiveWorkbenchWindow().getActivePage().showView(IDebugUIConstants.ID_BREAKPOINT_VIEW));
 		}
-		assertNotNull("Failed to obtain breakpoint view.", view);
+		assertNotNull(view, "Failed to obtain breakpoint view.");
 
 		try {
 			String content = "Bug 424561";
@@ -85,45 +88,45 @@ public class BreakpointTests extends AbstractDebugTest {
 			IUndoContext context = DebugUITools.getBreakpointsUndoContext();
 
 			bpm.addBreakpoint(bp);
-			TestUtil.waitWhile(c -> c.getTestBreakpoints().isEmpty(), this, testTimeout, c -> "Breakpoint is not created");
-			assertTrue("Breakpoint marker missing", bp.getMarker().exists());
-			assertTrue("Breakpoint not registered", bp.isRegistered());
+			TestUtil.waitWhile(() -> getTestBreakpoints().isEmpty(), () -> "Breakpoint is not created");
+			assertTrue(bp.getMarker().exists(), "Breakpoint marker missing");
+			assertTrue(bp.isRegistered(), "Breakpoint not registered");
 
 			DebugUITools.deleteBreakpoints(new IBreakpoint[] {
 					bp }, null, null);
 			assertTrue(operationHistory.canUndo(context));
-			TestUtil.waitWhile(c -> !c.getTestBreakpoints().isEmpty(), this, testTimeout, c -> "Breakpoint is not deleted");
-			assertFalse("Breakpoint marker not removed", bp.getMarker().exists());
-			assertFalse("Breakpoint still registered", bp.isRegistered());
+			TestUtil.waitWhile(() -> !getTestBreakpoints().isEmpty(), () -> "Breakpoint is not deleted");
+			assertFalse(bp.getMarker().exists(), "Breakpoint marker not removed");
+			assertFalse(bp.isRegistered(), "Breakpoint still registered");
 
 			operationHistory.undo(context, null, null);
 			assertTrue(operationHistory.canRedo(context));
-			TestUtil.waitWhile(c -> c.getTestBreakpoints().isEmpty(), this, testTimeout, c -> "Breakpoint is not recreated");
+			TestUtil.waitWhile(() -> getTestBreakpoints().isEmpty(), () -> "Breakpoint is not recreated");
 			bp = getTestBreakpoints().get(0);
-			assertEquals("Breakpoint attributes not correctly restored", content, bp.getText());
-			assertTrue("Breakpoint marker missing", bp.getMarker().exists());
-			assertTrue("Breakpoint not registered", bp.isRegistered());
+			assertEquals(content, bp.getText(), "Breakpoint attributes not correctly restored");
+			assertTrue(bp.getMarker().exists(), "Breakpoint marker missing");
+			assertTrue(bp.isRegistered(), "Breakpoint not registered");
 
 			operationHistory.redo(context, null, null);
 			assertTrue(operationHistory.canUndo(context));
-			TestUtil.waitWhile(c -> !c.getTestBreakpoints().isEmpty(), this, testTimeout, c -> "Breakpoint is not deleted");
-			assertFalse("Breakpoint marker not removed", bp.getMarker().exists());
-			assertFalse("Breakpoint still registered", bp.isRegistered());
+			TestUtil.waitWhile(() -> !getTestBreakpoints().isEmpty(), () -> "Breakpoint is not deleted");
+			assertFalse(bp.getMarker().exists(), "Breakpoint marker not removed");
+			assertFalse(bp.isRegistered(), "Breakpoint still registered");
 
 			operationHistory.undo(context, null, null);
 			assertTrue(operationHistory.canRedo(context));
-			TestUtil.waitWhile(c -> c.getTestBreakpoints().isEmpty(), this, testTimeout, c -> "Breakpoint is not recreated");
+			TestUtil.waitWhile(() -> getTestBreakpoints().isEmpty(), () -> "Breakpoint is not recreated");
 			bp = getTestBreakpoints().get(0);
-			assertEquals("Breakpoint attributes not correctly restored", content, bp.getText());
-			assertTrue("Breakpoint marker missing", bp.getMarker().exists());
-			assertTrue("Breakpoint not registered", bp.isRegistered());
+			assertEquals(content, bp.getText(), "Breakpoint attributes not correctly restored");
+			assertTrue(bp.getMarker().exists(), "Breakpoint marker missing");
+			assertTrue(bp.isRegistered(), "Breakpoint not registered");
 
 			final BreakpointsView finalView = view;
 			final TestBreakpoint finalBp = bp;
-			TestUtil.waitWhile(c -> {
+			TestUtil.waitWhile(() -> {
 				TreeItem item = (TreeItem) finalView.getTreeModelViewer().testFindItem(finalBp);
 				return item == null || item.getText() == null || !item.getText().contains(content);
-			}, this, testTimeout, c -> "Breakpoint not restored in view");
+			}, () -> "Breakpoint not restored in view");
 		} finally {
 			if (!viewVisible) {
 				DebugUIPlugin.getActiveWorkbenchWindow().getActivePage().hideView(view);

@@ -15,8 +15,9 @@ package org.eclipse.debug.tests.console;
 
 import static java.nio.file.Files.readAllBytes;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.eclipse.debug.tests.TestUtil.waitWhile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -35,8 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -54,7 +55,7 @@ import org.eclipse.debug.core.Launch;
 import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.debug.internal.ui.DebugUIPlugin;
 import org.eclipse.debug.internal.ui.views.console.ProcessConsole;
-import org.eclipse.debug.tests.AbstractDebugTest;
+import org.eclipse.debug.tests.DebugTestExtension;
 import org.eclipse.debug.tests.TestUtil;
 import org.eclipse.debug.tests.launching.LaunchConfigurationTests;
 import org.eclipse.debug.ui.IDebugUIConstants;
@@ -69,14 +70,17 @@ import org.eclipse.ui.console.IConsoleManager;
 import org.eclipse.ui.console.IOConsole;
 import org.eclipse.ui.console.IOConsoleInputStream;
 import org.eclipse.ui.internal.console.ConsoleManager;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Tests the ProcessConsole.
  */
-public class ProcessConsoleTests extends AbstractDebugTest {
+@ExtendWith(DebugTestExtension.class)
+public class ProcessConsoleTests {
 	/**
 	 * Log messages with severity error received while running a single test
 	 * method.
@@ -93,24 +97,22 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 	/** Temporary test files created by a test. Will be deleted on teardown. */
 	private final ArrayList<File> tmpFiles = new ArrayList<>();
 
-	@Override
-	@Before
-	public void setUp() throws Exception {
-		super.setUp();
+	private TestInfo testInfo;
+
+	@BeforeEach
+	public void setUp(TestInfo testInfo) throws Exception {
+		this.testInfo = testInfo;
 		loggedErrors.clear();
 		Platform.addLogListener(errorLogListener);
 	}
 
-	@Override
-	@After
+	@AfterEach
 	public void tearDown() throws Exception {
 		Platform.removeLogListener(errorLogListener);
 		for (File tmpFile : tmpFiles) {
 			tmpFile.delete();
 		}
 		tmpFiles.clear();
-
-		super.tearDown();
 
 		assertThat(errorsToStrings()).as("logged errors").isEmpty();
 	}
@@ -138,7 +140,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 	private File createTmpFile(String filename) throws IOException {
 		File file = DebugUIPlugin.getDefault().getStateLocation().addTrailingSeparator().append(filename).toFile();
 		boolean fileCreated = file.createNewFile();
-		assertTrue("Failed to prepare temporary test file.", fileCreated);
+		assertTrue(fileCreated, "Failed to prepare temporary test file.");
 		tmpFiles.add(file);
 		return file;
 	}
@@ -187,7 +189,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 	 */
 	public void processConsoleUTF8Input(String prefix, int numTwoByteCharacters) throws Exception {
 		final String input = prefix + String.join("", Collections.nCopies(numTwoByteCharacters, "\u00F8"));
-		final MockProcess mockProcess = new MockProcess(input.getBytes(StandardCharsets.UTF_8).length, testTimeout);
+		final MockProcess mockProcess = new MockProcess(input.getBytes(StandardCharsets.UTF_8).length, TestUtil.DEFAULT_TIMEOUT);
 		try {
 			final ILaunch launch = new Launch(null, ILaunchManager.RUN_MODE, null);
 			launch.setAttribute(DebugPlugin.ATTR_CONSOLE_ENCODING, StandardCharsets.UTF_8.toString());
@@ -198,7 +200,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 				@SuppressWarnings("resource")
 				IOConsoleInputStream consoleIn = console.getInputStream();
 				consoleIn.appendData(input);
-				mockProcess.waitFor(testTimeout, TimeUnit.MILLISECONDS);
+				mockProcess.waitFor(TestUtil.DEFAULT_TIMEOUT, TimeUnit.MILLISECONDS);
 			} finally {
 				console.destroy();
 			}
@@ -228,7 +230,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 				final Class<?> jobFamily = org.eclipse.debug.internal.ui.views.console.ProcessConsole.class;
 				assertThat(Job.getJobManager().find(jobFamily)).as("check input read job started").hasSizeGreaterThan(0);
 				Job.getJobManager().cancel(jobFamily);
-				TestUtil.waitForJobs(name.getMethodName(), ProcessConsole.class, 0, 1000);
+				TestUtil.waitForJobs(testInfo.getDisplayName(), ProcessConsole.class, 0, 1000);
 				assertThat(Job.getJobManager().find(jobFamily)).as("check input read job is canceled").isEmpty();
 			} finally {
 				console.destroy();
@@ -243,9 +245,9 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 	 */
 	@Test
 	public void testProcessTerminationNotification() throws Exception {
-		TestUtil.log(IStatus.INFO, name.getMethodName(), "Process terminates after Console is initialized.");
+		TestUtil.log(IStatus.INFO, testInfo.getDisplayName(), "Process terminates after Console is initialized.");
 		processTerminationTest(null, false);
-		TestUtil.log(IStatus.INFO, name.getMethodName(), "Process terminates before Console is initialized.");
+		TestUtil.log(IStatus.INFO, testInfo.getDisplayName(), "Process terminates before Console is initialized.");
 		processTerminationTest(null, true);
 	}
 
@@ -257,14 +259,14 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 	public void testProcessTerminationNotificationWithInputFile() throws Exception {
 		File inFile = DebugUIPlugin.getDefault().getStateLocation().addTrailingSeparator().append("testStdin.txt").toFile();
 		boolean fileCreated = inFile.createNewFile();
-		assertTrue("Failed to prepare input file.", fileCreated);
+		assertTrue(fileCreated, "Failed to prepare input file.");
 		try {
 			ILaunchConfigurationType launchType = DebugPlugin.getDefault().getLaunchManager().getLaunchConfigurationType(LaunchConfigurationTests.ID_TEST_LAUNCH_TYPE);
-			ILaunchConfigurationWorkingCopy launchConfiguration = launchType.newInstance(null, name.getMethodName());
+			ILaunchConfigurationWorkingCopy launchConfiguration = launchType.newInstance(null, testInfo.getDisplayName());
 			launchConfiguration.setAttribute(IDebugUIConstants.ATTR_CAPTURE_STDIN_FILE, inFile.getAbsolutePath());
-			TestUtil.log(IStatus.INFO, name.getMethodName(), "Process terminates after Console is initialized.");
+			TestUtil.log(IStatus.INFO, testInfo.getDisplayName(), "Process terminates after Console is initialized.");
 			processTerminationTest(launchConfiguration, false);
-			TestUtil.log(IStatus.INFO, name.getMethodName(), "Process terminates before Console is initialized.");
+			TestUtil.log(IStatus.INFO, testInfo.getDisplayName(), "Process terminates before Console is initialized.");
 			processTerminationTest(launchConfiguration, true);
 		} finally {
 			inFile.delete();
@@ -283,7 +285,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 	public void processTerminationTest(ILaunchConfiguration launchConfig, boolean terminateBeforeConsoleInitialization) throws Exception {
 		final AtomicBoolean terminationSignaled = new AtomicBoolean(false);
 		final Process mockProcess = new MockProcess(null, null, terminateBeforeConsoleInitialization ? 0 : -1);
-		final IProcess process = DebugPlugin.newProcess(new Launch(launchConfig, ILaunchManager.RUN_MODE, null), mockProcess, name.getMethodName());
+		final IProcess process = DebugPlugin.newProcess(new Launch(launchConfig, ILaunchManager.RUN_MODE, null), mockProcess, testInfo.getDisplayName());
 		final org.eclipse.debug.internal.ui.views.console.ProcessConsole console = new org.eclipse.debug.internal.ui.views.console.ProcessConsole(process, new ConsoleColorProvider());
 		console.addPropertyChangeListener(event -> {
 				if (event.getSource() == console && IConsoleConstants.P_CONSOLE_OUTPUT_COMPLETE.equals(event.getProperty())) {
@@ -296,10 +298,10 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 			if (mockProcess.isAlive()) {
 				mockProcess.destroy();
 			}
-			waitWhile(__ -> !terminationSignaled.get(), 10_000, __ -> "No console complete notification received.");
+			waitWhile(() -> !terminationSignaled.get(), () -> "No console complete notification received.");
 		} finally {
 			consoleManager.removeConsoles(new IConsole[] { console });
-			TestUtil.waitForJobs(name.getMethodName(), ConsoleManager.CONSOLE_JOB_FAMILY, 0, 10000);
+			TestUtil.waitForJobs(testInfo.getDisplayName(), ConsoleManager.CONSOLE_JOB_FAMILY, 0, 10000);
 		}
 	}
 
@@ -352,19 +354,19 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 		launchConfigAttributes.put(IDebugUIConstants.ATTR_CAPTURE_IN_CONSOLE, false);
 		IOConsole console = doConsoleOutputTest(testContent.getBytes(), launchConfigAttributes);
 		assertThat(readAllBytes(outFile.toPath())).as("content redirected to file").containsExactly(testContent.getBytes());
-		assertEquals("Output in console.", 2, console.getDocument().getNumberOfLines());
+		assertEquals(2, console.getDocument().getNumberOfLines(), "Output in console.");
 
 		outFile = createTmpFile("exhaustive[128-32].out");
 		launchConfigAttributes.put(IDebugUIConstants.ATTR_CAPTURE_IN_FILE, outFile.getCanonicalPath());
 		console = doConsoleOutputTest(testContent.getBytes(), launchConfigAttributes);
 		assertThat(readAllBytes(outFile.toPath())).as("content redirected to file").containsExactly(testContent.getBytes());
-		assertEquals("Output in console.", 2, console.getDocument().getNumberOfLines());
+		assertEquals(2, console.getDocument().getNumberOfLines(), "Output in console.");
 
 		outFile = createTmpFile("ug(ly.out");
 		launchConfigAttributes.put(IDebugUIConstants.ATTR_CAPTURE_IN_FILE, outFile.getCanonicalPath());
 		console = doConsoleOutputTest(testContent.getBytes(), launchConfigAttributes);
 		assertThat(readAllBytes(outFile.toPath())).as("content redirected to file").containsExactly(testContent.getBytes());
-		assertEquals("Output in console.", 2, console.getDocument().getNumberOfLines());
+		assertEquals(2, console.getDocument().getNumberOfLines(), "Output in console.");
 	}
 
 	/**
@@ -395,7 +397,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 		try {
 			consoleManager.addConsoles(new IConsole[] { console });
 			mockProcess.destroy();
-			waitWhile(c -> !consoleFinished.get(), testTimeout, c -> "Console did not finished.");
+			waitWhile(() -> !consoleFinished.get(), () -> "Console did not finished.");
 
 			Object value = launchConfigAttributes != null ? launchConfigAttributes.get(IDebugUIConstants.ATTR_CAPTURE_IN_FILE) : null;
 			final File outFile = value != null ? new File((String) value) : null;
@@ -405,11 +407,11 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 
 			if (outFile != null) {
 				String expectedPathMsg = MessageFormat.format(org.eclipse.debug.internal.ui.views.console.ConsoleMessages.ProcessConsole_1, outFile.getAbsolutePath());
-				assertEquals("No or wrong output of redirect file path in console.", expectedPathMsg, doc.get(doc.getLineOffset(0), doc.getLineLength(0)));
+				assertEquals(expectedPathMsg, doc.get(doc.getLineOffset(0), doc.getLineLength(0)), "No or wrong output of redirect file path in console.");
 				assertThat(console.getHyperlinks()).as("check redirect file path is linked").hasSize(1);
 			}
 			if (checkOutput) {
-				assertEquals("Output not found in console.", new String(testContent), doc.get(doc.getLineOffset(1), doc.getLineLength(1)));
+				assertEquals(new String(testContent), doc.get(doc.getLineOffset(1), doc.getLineLength(1)), "Output not found in console.");
 			}
 			return console;
 		} finally {
@@ -417,7 +419,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 				process.terminate();
 			}
 			consoleManager.removeConsoles(new IConsole[] { console });
-			TestUtil.waitForJobs(name.getMethodName(), ConsoleManager.CONSOLE_JOB_FAMILY, 0, 1000);
+			TestUtil.waitForJobs(testInfo.getDisplayName(), ConsoleManager.CONSOLE_JOB_FAMILY, 0, 1000);
 		}
 	}
 
@@ -452,7 +454,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 					mockProcess.destroy();
 					sysout.close();
 
-					Predicate<AbstractDebugTest> waitForLastLineWritten = __ -> {
+					BooleanSupplier waitForLastLineWritten = () -> {
 						try {
 							TestUtil.processUIEvents(50);
 						} catch (Exception e) {
@@ -460,17 +462,17 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 						}
 						return console.getDocument().getNumberOfLines() < lines.length;
 					};
-					Function<AbstractDebugTest, String> errorMessageProvider = __ -> {
+					Supplier<String> errorMessageProvider = () -> {
 						String expected = String.join(System.lineSeparator(), lines);
 						String actual = console.getDocument().get();
 						return "Not all lines have been written, expected: " + expected + ", was: " + actual;
 					};
-					waitWhile(waitForLastLineWritten, testTimeout, errorMessageProvider);
+					waitWhile(waitForLastLineWritten, errorMessageProvider);
 
 					for (int i = 0; i < lines.length; i++) {
 						IRegion lineInfo = console.getDocument().getLineInformation(i);
 						String line = console.getDocument().get(lineInfo.getOffset(), lineInfo.getLength());
-						assertEquals("Wrong content in line " + i, lines[i], line);
+						assertEquals(lines[i], line, "Wrong content in line " + i);
 					}
 				} finally {
 					console.destroy();
@@ -503,7 +505,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 			try {
 				console.initialize();
 
-				Predicate<AbstractDebugTest> waitForFileWritten = __ -> {
+				BooleanSupplier waitForFileWritten = () -> {
 					try {
 						TestUtil.processUIEvents(20);
 						return readAllBytes(outFile.toPath()).length < output.length;
@@ -512,7 +514,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 					}
 					return false;
 				};
-				Function<AbstractDebugTest, String> errorMessageProvider = __ -> {
+				Supplier<String> errorMessageProvider = () -> {
 					byte[] actualOutput = new byte[0];
 					try {
 						actualOutput = readAllBytes(outFile.toPath());
@@ -521,7 +523,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 					}
 					return "File has not been written, expected: " + Arrays.toString(output) + ", was: " + Arrays.toString(actualOutput);
 				};
-				waitWhile(waitForFileWritten, testTimeout, errorMessageProvider);
+				waitWhile(waitForFileWritten, errorMessageProvider);
 				mockProcess.destroy();
 			} finally {
 				console.destroy();
@@ -546,7 +548,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 
 		final File inFile = createTmpFile("testinput.bin");
 		Files.write(inFile.toPath(), input);
-		final MockProcess mockProcess = new MockProcess(input.length, testTimeout);
+		final MockProcess mockProcess = new MockProcess(input.length, TestUtil.DEFAULT_TIMEOUT);
 		try {
 			Map<String, Object> launchConfigAttributes = new HashMap<>();
 			launchConfigAttributes.put(DebugPlugin.ATTR_CONSOLE_ENCODING, consoleEncoding);
@@ -556,7 +558,7 @@ public class ProcessConsoleTests extends AbstractDebugTest {
 			final org.eclipse.debug.internal.ui.views.console.ProcessConsole console = new org.eclipse.debug.internal.ui.views.console.ProcessConsole(process, new ConsoleColorProvider(), consoleEncoding);
 			try {
 				console.initialize();
-				mockProcess.waitFor(testTimeout, TimeUnit.MILLISECONDS);
+				mockProcess.waitFor(TestUtil.DEFAULT_TIMEOUT, TimeUnit.MILLISECONDS);
 			} finally {
 				console.destroy();
 			}

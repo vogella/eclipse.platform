@@ -11,19 +11,21 @@
 package org.eclipse.debug.tests.stepfilters;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.model.IStepFilter;
-import org.eclipse.debug.tests.AbstractDebugTest;
-import org.junit.Test;
+import org.eclipse.debug.tests.DebugTestExtension;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Tests step filters
  */
-public class StepFiltersTests extends AbstractDebugTest {
+@ExtendWith(DebugTestExtension.class)
+public class StepFiltersTests {
 	@Test
 	public void testStepFitlersExtension_01() {
 		IStepFilter[] stepFilters = DebugPlugin.getStepFilters("com.example.lalala.model"); //$NON-NLS-1$

@@ -12,7 +12,8 @@ package org.eclipse.core.tests.harness.session.customization;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.core.tests.harness.FileSystemHelper.deleteOnShutdownRecursively;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,7 +21,9 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -29,9 +32,7 @@ import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.tests.harness.session.CustomSessionConfiguration;
-import org.eclipse.core.tests.session.ConfigurationSessionTestSuite;
 import org.eclipse.core.tests.session.Setup;
-import org.junit.Assert;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.Constants;
 import org.osgi.framework.FrameworkUtil;
@@ -50,6 +51,8 @@ public class CustomSessionConfigurationImpl implements CustomSessionConfiguratio
 
 	private final Collection<BundleReference> bundleReferences = new LinkedHashSet<>();
 	private Path configurationDirectory;
+	private final Map<String, String> configIniValues = new HashMap<>();
+	private final Map<String, String> systemProperties = new HashMap<>();
 	private boolean readOnly = false;
 	private boolean cascaded = false;
 	private boolean firstExecutedSession = true;
@@ -97,7 +100,7 @@ public class CustomSessionConfigurationImpl implements CustomSessionConfiguratio
 		if ("org.hamcrest".equals(FrameworkUtil.getBundle(org.hamcrest.CoreMatchers.class).getSymbolicName())) {
 			Bundle maxHamcrestCoreBundle = null;
 			Version maxHamcrestCoreVersion = null;
-			for (Bundle bundle : FrameworkUtil.getBundle(ConfigurationSessionTestSuite.class).getBundleContext()
+			for (Bundle bundle : FrameworkUtil.getBundle(CustomSessionConfigurationImpl.class).getBundleContext()
 					.getBundles()) {
 				if ("org.hamcrest.core".equals(bundle.getSymbolicName())) {
 					Version version = bundle.getVersion();
@@ -142,6 +145,26 @@ public class CustomSessionConfigurationImpl implements CustomSessionConfiguratio
 	}
 
 	@Override
+	public CustomSessionConfiguration setConfigIniValue(String key, String value) {
+		if (value == null) {
+			configIniValues.remove(key);
+		} else {
+			configIniValues.put(key, value);
+		}
+		return this;
+	}
+
+	@Override
+	public CustomSessionConfiguration setSystemProperty(String key, String value) {
+		if (value == null) {
+			systemProperties.remove(key);
+		} else {
+			systemProperties.put(key, value);
+		}
+		return this;
+	}
+
+	@Override
 	public CustomSessionConfiguration setConfigurationDirectory(Path configurationDirectory) {
 		Objects.requireNonNull(configurationDirectory);
 		this.configurationDirectory = configurationDirectory;
@@ -176,6 +199,7 @@ public class CustomSessionConfigurationImpl implements CustomSessionConfiguratio
 		if (cascaded) {
 			createOrRefreshConfigIni();
 		}
+		setup.setSystemProperties(systemProperties);
 	}
 
 	@Override
@@ -212,6 +236,9 @@ public class CustomSessionConfigurationImpl implements CustomSessionConfiguratio
 			contents.put(PROP_SHARED_CONFIG_AREA, Platform.getConfigurationLocation().getURL().toExternalForm());
 		}
 		contents.put(PROP_CONFIG_AREA_READ_ONLY, Boolean.valueOf(readOnly).toString());
+		for (Map.Entry<String, String> entry : configIniValues.entrySet()) {
+			contents.put(entry.getKey(), entry.getValue());
+		}
 		// save the properties
 		Path configINI = getConfigurationDirectory().resolve("config.ini");
 		try (OutputStream out = Files.newOutputStream(configINI)) {
@@ -228,7 +255,7 @@ public class CustomSessionConfigurationImpl implements CustomSessionConfiguratio
 
 	private void addBundle(Class<?> classFromBundle, String suffix) {
 		Bundle bundle = FrameworkUtil.getBundle(classFromBundle);
-		Assert.assertNotNull("Class is not from a bundle: " + classFromBundle, bundle);
+		assertNotNull(bundle, "Class is not from a bundle: " + classFromBundle);
 		addBundle(bundle, suffix);
 	}
 
@@ -267,7 +294,7 @@ public class CustomSessionConfigurationImpl implements CustomSessionConfiguratio
 
 		String toURL() {
 			Optional<File> location = FileLocator.getBundleFileLocation(bundle);
-			assertTrue("Unable to locate bundle with id: " + bundle.getSymbolicName(), location.isPresent());
+			assertTrue(location.isPresent(), "Unable to locate bundle with id: " + bundle.getSymbolicName());
 			String externalForm;
 			try {
 				externalForm = location.get().toURI().toURL().toExternalForm();

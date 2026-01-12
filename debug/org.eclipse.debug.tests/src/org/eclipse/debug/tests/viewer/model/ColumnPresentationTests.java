@@ -14,10 +14,11 @@
  *******************************************************************************/
 package org.eclipse.debug.tests.viewer.model;
 
-import static org.junit.Assert.assertEquals;
+import static org.eclipse.debug.tests.TestUtil.waitWhile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Arrays;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IColumnPresentation;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IColumnPresentation2;
@@ -25,7 +26,7 @@ import org.eclipse.debug.internal.ui.viewers.model.provisional.IColumnPresentati
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IPresentationContext;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.PresentationContext;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.TreeModelViewer;
-import org.eclipse.debug.tests.AbstractDebugTest;
+import org.eclipse.debug.tests.DebugTestExtension;
 import org.eclipse.debug.tests.TestUtil;
 import org.eclipse.debug.tests.viewer.model.TestModel.TestElement;
 import org.eclipse.jface.resource.ImageDescriptor;
@@ -40,32 +41,30 @@ import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.XMLMemento;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Tests to verify that the viewer properly handles initial columns width.
  */
-public class ColumnPresentationTests extends AbstractDebugTest implements ITestModelUpdatesListenerConstants {
+@ExtendWith(DebugTestExtension.class)
+public class ColumnPresentationTests implements ITestModelUpdatesListenerConstants {
 	private Display fDisplay;
 	private Shell fShell;
 	private TreeModelViewer fViewer;
 	private TestModelUpdatesListener fListener;
 	private boolean fResized = false;
 
-	@Override
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
-		super.setUp();
 		createViewer();
 	}
 
-	@Override
-	@After
+	@AfterEach
 	public void tearDown() throws Exception {
 		destroyViewer();
-		super.tearDown();
 	}
 
 	void createViewer() {
@@ -251,7 +250,7 @@ public class ColumnPresentationTests extends AbstractDebugTest implements ITestM
 		new TestElement(model, "6", new TestElement[0]) })); //$NON-NLS-1$
 		fListener.reset(TreePath.EMPTY, model.getRootElement(), -1, true, false);
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 		return model;
 	}
@@ -350,10 +349,10 @@ public class ColumnPresentationTests extends AbstractDebugTest implements ITestM
 		// get InternalTreeModelViewer to rebuild columns due to hide and show columns
 		fViewer.setShowColumns(false);
 		TestUtil.processUIEvents();
-		waitWhile(t -> fViewer.getTree().getColumns().length > 0, createColumnsErrorMessage());
+		waitWhile(() -> fViewer.getTree().getColumns().length > 0, createColumnsErrorMessage());
 		fViewer.setShowColumns(true);
 		TestUtil.processUIEvents();
-		waitWhile(t -> fViewer.getTree().getColumns().length != newWidths.length, createColumnsErrorMessage());
+		waitWhile(() -> fViewer.getTree().getColumns().length != newWidths.length, createColumnsErrorMessage());
 		// verify user resized widths are used instead of the initial widths from IColumnPresentation2
 		columns = fViewer.getTree().getColumns();
 		for (int i = 0; i < columns.length; i++) {
@@ -411,7 +410,7 @@ public class ColumnPresentationTests extends AbstractDebugTest implements ITestM
 		// Select visible columns
 		fViewer.setVisibleColumns(new String[] { colPre.columnIds[0] });
 		TestUtil.processUIEvents();
-		waitWhile(t -> fViewer.getTree().getColumns().length != 1, createColumnsErrorMessage());
+		waitWhile(() -> fViewer.getTree().getColumns().length != 1, createColumnsErrorMessage());
 
 		// get InternalTreeModelViewer to rebuild columns due to change of
 		// model and presentation - first set to another model and column
@@ -431,11 +430,11 @@ public class ColumnPresentationTests extends AbstractDebugTest implements ITestM
 		}
 	}
 
-	private Function<AbstractDebugTest, String> createColumnsErrorMessage() {
-		return t -> "Unexpected columns number: " + fViewer.getTree().getColumns().length;
+	private Supplier<String> createColumnsErrorMessage() {
+		return () -> "Unexpected columns number: " + fViewer.getTree().getColumns().length;
 	}
 
-	private Function<AbstractDebugTest, String> createListenerErrorMessage() {
-		return t -> "Listener not finished: " + fListener;
+	private Supplier<String> createListenerErrorMessage() {
+		return () -> "Listener not finished: " + fListener;
 	}
 }

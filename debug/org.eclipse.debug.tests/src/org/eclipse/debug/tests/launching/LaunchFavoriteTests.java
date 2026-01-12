@@ -14,9 +14,10 @@
 package org.eclipse.debug.tests.launching;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.eclipse.debug.tests.TestUtil.getLaunchConfigurationManager;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +26,12 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.internal.ui.launchConfigurations.LaunchHistory;
+import org.eclipse.debug.tests.TestUtil;
 import org.eclipse.debug.ui.IDebugUIConstants;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 /**
  * Test the launch history favorites get updated properly as configurations as
@@ -36,7 +39,7 @@ import org.junit.Test;
  *
  * @since 3.6
  */
-public class LaunchFavoriteTests extends AbstractLaunchTest {
+public class LaunchFavoriteTests {
 
 	/**
 	 * Configuration to use for the test. One is created for each test during
@@ -58,25 +61,21 @@ public class LaunchFavoriteTests extends AbstractLaunchTest {
 		return getLaunchConfigurationManager().getLaunchHistory(IDebugUIConstants.ID_DEBUG_LAUNCH_GROUP);
 	}
 
-	@Override
-	@Before
-	public void setUp() throws Exception {
-		super.setUp();
+	@BeforeEach
+	public void setUp(TestInfo testInfo) throws Exception {
 		// clear the favorites
 		getRunLaunchHistory().setFavorites(new ILaunchConfiguration[0]);
 		getDebugLaunchHistory().setFavorites(new ILaunchConfiguration[0]);
-		fConfig = getLaunchConfiguration(name.getMethodName());
+		fConfig = TestUtil.getLaunchConfiguration(testInfo.getDisplayName());
 	}
 
-	@Override
-	@After
+	@AfterEach
 	public void tearDown() throws Exception {
 		// delete the configuration used during this test
 		ILaunchConfiguration configuration = getLaunchConfiguration();
 		if (configuration.exists()) {
 			configuration.delete();
 		}
-		super.tearDown();
 	}
 
 	/**
@@ -148,7 +147,7 @@ public class LaunchFavoriteTests extends AbstractLaunchTest {
 	 */
 	private boolean containsFavorite(LaunchHistory history, ILaunchConfiguration configuration, int size) {
 		ILaunchConfiguration[] favorites = history.getFavorites();
-		assertNotNull("No favorites", favorites); //$NON-NLS-1$
+		assertNotNull(favorites, "No favorites"); //$NON-NLS-1$
 		if (size != -1) {
 			assertThat(favorites).hasSize(size);
 		}
@@ -168,8 +167,8 @@ public class LaunchFavoriteTests extends AbstractLaunchTest {
 		ILaunchConfigurationWorkingCopy wc = addFavorite(getLaunchConfiguration(), IDebugUIConstants.ID_DEBUG_LAUNCH_GROUP);
 		addFavorite(wc, IDebugUIConstants.ID_RUN_LAUNCH_GROUP);
 		ILaunchConfiguration saved = wc.doSave();
-		assertTrue("Missing from debug favorites", containsFavorite(getDebugLaunchHistory(), saved, 1)); //$NON-NLS-1$
-		assertTrue("Missing from run favorites", containsFavorite(getRunLaunchHistory(), saved, 1)); //$NON-NLS-1$
+		assertTrue(containsFavorite(getDebugLaunchHistory(), saved, 1), "Missing from debug favorites"); //$NON-NLS-1$
+		assertTrue(containsFavorite(getRunLaunchHistory(), saved, 1), "Missing from run favorites"); //$NON-NLS-1$
 	}
 
 	/**
@@ -182,8 +181,8 @@ public class LaunchFavoriteTests extends AbstractLaunchTest {
 		ILaunchConfigurationWorkingCopy wc = removeFavorite(getLaunchConfiguration(), IDebugUIConstants.ID_DEBUG_LAUNCH_GROUP);
 		removeFavorite(wc, IDebugUIConstants.ID_RUN_LAUNCH_GROUP);
 		ILaunchConfiguration saved = wc.doSave();
-		assertFalse("Should not be a debug favorite", containsFavorite(getDebugLaunchHistory(), saved, 0)); //$NON-NLS-1$
-		assertFalse("Should not be a run favorite", containsFavorite(getRunLaunchHistory(), saved, 0)); //$NON-NLS-1$
+		assertFalse(containsFavorite(getDebugLaunchHistory(), saved, 0), "Should not be a debug favorite"); //$NON-NLS-1$
+		assertFalse(containsFavorite(getRunLaunchHistory(), saved, 0), "Should not be a run favorite"); //$NON-NLS-1$
 	}
 
 	/**
@@ -194,8 +193,8 @@ public class LaunchFavoriteTests extends AbstractLaunchTest {
 		testBecomeFavorite(); // create a favorite in two histories
 		ILaunchConfiguration configuration = getLaunchConfiguration();
 		configuration.delete();
-		assertFalse("Should not be a debug favorite", containsFavorite(getDebugLaunchHistory(), configuration, 0)); //$NON-NLS-1$
-		assertFalse("Should not be a run favorite", containsFavorite(getRunLaunchHistory(), configuration, 0)); //$NON-NLS-1$
+		assertFalse(containsFavorite(getDebugLaunchHistory(), configuration, 0), "Should not be a debug favorite"); //$NON-NLS-1$
+		assertFalse(containsFavorite(getRunLaunchHistory(), configuration, 0), "Should not be a run favorite"); //$NON-NLS-1$
 	}
 
 	/**
@@ -209,8 +208,8 @@ public class LaunchFavoriteTests extends AbstractLaunchTest {
 		ILaunchConfigurationWorkingCopy copy = original.getWorkingCopy();
 		copy.rename("rename" + original.getName()); //$NON-NLS-1$
 		ILaunchConfiguration saved = copy.doSave();
-		assertTrue("Missing from debug favorites", containsFavorite(getDebugLaunchHistory(), saved, 1)); //$NON-NLS-1$
-		assertTrue("Missing from run favorites", containsFavorite(getRunLaunchHistory(), saved, 1)); //$NON-NLS-1$
+		assertTrue(containsFavorite(getDebugLaunchHistory(), saved, 1), "Missing from debug favorites"); //$NON-NLS-1$
+		assertTrue(containsFavorite(getRunLaunchHistory(), saved, 1), "Missing from run favorites"); //$NON-NLS-1$
 		saved.delete();
 	}
 
@@ -226,8 +225,8 @@ public class LaunchFavoriteTests extends AbstractLaunchTest {
 		addFavorite(copy, IDebugUIConstants.ID_DEBUG_LAUNCH_GROUP);
 		addFavorite(copy, IDebugUIConstants.ID_RUN_LAUNCH_GROUP);
 		ILaunchConfiguration saved = copy.doSave();
-		assertTrue("Missing from debug favorites", containsFavorite(getDebugLaunchHistory(), saved, 1)); //$NON-NLS-1$
-		assertTrue("Missing from run favorites", containsFavorite(getRunLaunchHistory(), saved, 1)); //$NON-NLS-1$
+		assertTrue(containsFavorite(getDebugLaunchHistory(), saved, 1), "Missing from debug favorites"); //$NON-NLS-1$
+		assertTrue(containsFavorite(getRunLaunchHistory(), saved, 1), "Missing from run favorites"); //$NON-NLS-1$
 		saved.delete();
 	}
 
@@ -244,8 +243,8 @@ public class LaunchFavoriteTests extends AbstractLaunchTest {
 		removeFavorite(copy, IDebugUIConstants.ID_DEBUG_LAUNCH_GROUP);
 		removeFavorite(copy, IDebugUIConstants.ID_RUN_LAUNCH_GROUP);
 		ILaunchConfiguration saved = copy.doSave();
-		assertFalse("Should not be a debug favorite", containsFavorite(getDebugLaunchHistory(), saved, 0)); //$NON-NLS-1$
-		assertFalse("Should not be a run favorite", containsFavorite(getRunLaunchHistory(), saved, 0)); //$NON-NLS-1$
+		assertFalse(containsFavorite(getDebugLaunchHistory(), saved, 0), "Should not be a debug favorite"); //$NON-NLS-1$
+		assertFalse(containsFavorite(getRunLaunchHistory(), saved, 0), "Should not be a run favorite"); //$NON-NLS-1$
 		saved.delete();
 	}
 }

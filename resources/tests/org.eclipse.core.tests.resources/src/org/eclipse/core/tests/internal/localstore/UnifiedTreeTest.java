@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2000, 2017 IBM Corporation and others.
+ *  Copyright (c) 2000, 2025 IBM Corporation and others.
  *
  *  This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License 2.0
@@ -18,9 +18,9 @@ import static org.eclipse.core.resources.ResourcesPlugin.getWorkspace;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createInWorkspace;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createTestMonitor;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createUniqueString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -44,16 +44,19 @@ import org.eclipse.core.resources.IWorkspaceRunnable;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.tests.resources.WorkspaceTestRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.eclipse.core.tests.resources.util.FileStoreAutoDeleteExtension;
+import org.eclipse.core.tests.resources.util.WorkspaceResetExtension;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+@ExtendWith(WorkspaceResetExtension.class)
 public class UnifiedTreeTest {
 
-	@Rule
-	public WorkspaceTestRule workspaceRule = new WorkspaceTestRule();
-
 	private static final int LIMIT = 10;
+
+	@RegisterExtension
+	private final FileStoreAutoDeleteExtension fileStoreExtension = new FileStoreAutoDeleteExtension();
 
 	protected void createFiles(IFileStore folder, Hashtable<String, String> set) throws Exception {
 		for (int i = 0; i < LIMIT; i++) {
@@ -131,9 +134,9 @@ public class UnifiedTreeTest {
 			final IResource resource = node.getResource();
 			final IFileStore store = ((Resource) resource).getStore();
 			if (node.existsInFileSystem()) {
-				assertEquals("1.0", store.fetchInfo().getName(), node.getLocalName());
+				assertEquals(store.fetchInfo().getName(), node.getLocalName());
 			}
-			assertEquals("1.1", store, node.getStore());
+			assertEquals(store, node.getStore());
 
 			/* remove from the hash table the resource we're visiting */
 			set.remove(resource.getLocation().toOSString());
@@ -145,7 +148,7 @@ public class UnifiedTreeTest {
 		tree.accept(visitor);
 
 		/* if the hash table is empty, we walked through all resources */
-		assertTrue("2.0", set.isEmpty());
+		assertTrue(set.isEmpty());
 	}
 
 	/**
@@ -276,15 +279,15 @@ public class UnifiedTreeTest {
 
 		IFileStore fileStore = EFS.getLocalFileSystem().fromLocalFile(file);
 		link.createLink(fileStore.toURI(), IResource.NONE, null);
-		workspaceRule.deleteOnTearDown(fileStore);
+		fileStoreExtension.deleteOnTearDown(fileStore);
 
 		IFile rf = link.getFile("fileTest342968.txt");
 		rf.create(new ByteArrayInputStream("test342968".getBytes()), false, null);
-		assertTrue("1.0", rf.exists());
+		assertTrue(rf.exists());
 
 		project.refreshLocal(IResource.DEPTH_INFINITE, null);
 
-		assertTrue("2.0", rf.exists());
+		assertTrue(rf.exists());
 	}
 
 	@Test

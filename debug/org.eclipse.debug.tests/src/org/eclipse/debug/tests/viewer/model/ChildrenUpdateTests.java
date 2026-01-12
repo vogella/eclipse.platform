@@ -13,9 +13,9 @@
  *******************************************************************************/
 package org.eclipse.debug.tests.viewer.model;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.debug.internal.ui.DebugUIPlugin;
 import org.eclipse.debug.internal.ui.viewers.model.ChildrenUpdate;
@@ -28,7 +28,7 @@ import org.eclipse.debug.internal.ui.viewers.model.provisional.IPresentationCont
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IStateUpdateListener;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IViewerUpdateListener;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.ModelDelta;
-import org.eclipse.debug.tests.AbstractDebugTest;
+import org.eclipse.debug.tests.DebugTestExtension;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
@@ -38,14 +38,16 @@ import org.eclipse.jface.viewers.ViewerLabel;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Tests coalescing of children update requests.
  *
  * @since 3.3
  */
-public class ChildrenUpdateTests extends AbstractDebugTest {
+@ExtendWith(DebugTestExtension.class)
+public class ChildrenUpdateTests {
 
 	class BogusModelContentProvider extends TreeModelContentProvider {
 
@@ -247,23 +249,23 @@ public class ChildrenUpdateTests extends AbstractDebugTest {
 		TreeModelContentProvider cp = getContentProvider();
 		ChildrenUpdate update1 = new ChildrenUpdate(cp, element, TreePath.EMPTY, element, 1, null);
 		ChildrenUpdate update2 = new ChildrenUpdate(cp, element, TreePath.EMPTY, element, 2, null);
-		assertTrue("Should coalesce", update1.coalesce(update2)); //$NON-NLS-1$
-		assertEquals("Wrong offset", 1, update1.getOffset()); //$NON-NLS-1$
-		assertEquals("Wrong length", 2, update1.getLength()); //$NON-NLS-1$
+		assertTrue(update1.coalesce(update2), "Should coalesce");
+		assertEquals(1, update1.getOffset(), "Wrong offset");
+		assertEquals(2, update1.getLength(), "Wrong length");
 
 		update2 = new ChildrenUpdate(cp, element, TreePath.EMPTY, element, 3, null);
-		assertTrue("Should coalesce", update1.coalesce(update2)); //$NON-NLS-1$
-		assertEquals("Wrong offset", 1, update1.getOffset()); //$NON-NLS-1$
-		assertEquals("Wrong length", 3, update1.getLength()); //$NON-NLS-1$
+		assertTrue(update1.coalesce(update2), "Should coalesce");
+		assertEquals(1, update1.getOffset(), "Wrong offset");
+		assertEquals(3, update1.getLength(), "Wrong length");
 
 		update2 = new ChildrenUpdate(cp, element, TreePath.EMPTY, element, 2, null);
-		assertTrue("Should coalesce", update1.coalesce(update2)); //$NON-NLS-1$
-		assertEquals("Wrong offset", 1, update1.getOffset()); //$NON-NLS-1$
-		assertEquals("Wrong length", 3, update1.getLength()); //$NON-NLS-1$
+		assertTrue(update1.coalesce(update2), "Should coalesce");
+		assertEquals(1, update1.getOffset(), "Wrong offset");
+		assertEquals(3, update1.getLength(), "Wrong length");
 
 		update2 = new ChildrenUpdate(cp, element, TreePath.EMPTY, element, 5, null);
-		assertFalse("Should not coalesce", update1.coalesce(update2)); //$NON-NLS-1$
-		assertEquals("Wrong offset", 1, update1.getOffset()); //$NON-NLS-1$
-		assertEquals("Wrong length", 3, update1.getLength()); //$NON-NLS-1$
+		assertFalse(update1.coalesce(update2), "Should not coalesce");
+		assertEquals(1, update1.getOffset(), "Wrong offset");
+		assertEquals(3, update1.getLength(), "Wrong length");
 	}
 }

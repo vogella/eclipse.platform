@@ -16,12 +16,13 @@ package org.eclipse.core.tests.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createRandomString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -30,13 +31,12 @@ import org.eclipse.core.internal.resources.MarkerAttributeMap;
 import org.eclipse.core.internal.resources.MarkerInfo;
 import org.eclipse.core.internal.resources.MarkerSet;
 import org.eclipse.core.resources.IMarker;
-import org.junit.Rule;
-import org.junit.Test;
+import org.eclipse.core.tests.resources.util.WorkspaceResetExtension;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(WorkspaceResetExtension.class)
 public class MarkerSetTest {
-
-	@Rule
-	public WorkspaceTestRule workspaceRule = new WorkspaceTestRule();
 
 	private void assertMarkerElementsEqual(IMarkerSetElement[] array1, IMarkerSetElement[] array2) {
 		assertNotNull(array1);
@@ -78,16 +78,16 @@ public class MarkerSetTest {
 		for (int i = 0; i < infos.length; i++) {
 			info = infos[i];
 			set.add(info);
-			assertTrue("2.0." + i, set.contains(info.getId()));
-			assertEquals("2.1." + i, i + 1, set.size());
+			assertTrue(set.contains(info.getId()), i + "");
+			assertEquals(set.size(), i + 1, i + "");
 		}
 
 		// make sure they are all still there
-		assertEquals("3.0", max, set.size());
+		assertEquals(max, set.size());
 		for (int i = 0; i < infos.length; i++) {
 			info = infos[i];
-			assertTrue("3.1." + i, set.contains(info.getId()));
-			assertNotNull("3.2." + i, set.get(info.getId()));
+			assertTrue(set.contains(info.getId()), i + "");
+			assertNotNull(set.get(info.getId()), i + "");
 		}
 	}
 
@@ -104,7 +104,7 @@ public class MarkerSetTest {
 			infos[i] = info;
 		}
 		set.addAll(infos);
-		assertEquals("1.0", max, set.size());
+		assertEquals(max, set.size());
 
 		// remove each element
 		assertMarkerElementsEqual(set.elements(), infos);
@@ -123,22 +123,22 @@ public class MarkerSetTest {
 			infos[i] = info;
 		}
 		set.addAll(infos);
-		assertEquals("1.0", max, set.size());
+		assertEquals(max, set.size());
 
 		// remove each element
 		for (int i = max - 1; i >= 0; i--) {
 			info = infos[i];
 			set.remove(info);
-			assertTrue("2.0." + i, !set.contains(info.getId()));
-			assertEquals("2.1," + i, i, set.size());
+			assertFalse(set.contains(info.getId()), i + "");
+			assertEquals(i, set.size(), i + "");
 			// check that the others still exist
 			for (int j = 0; j < i; j++) {
-				assertTrue("2.2." + j, set.contains(infos[j].getId()));
+				assertTrue(set.contains(infos[j].getId()), j + "");
 			}
 		}
 
 		// all gone?
-		assertEquals("3.0", 0, set.size());
+		assertEquals(0, set.size());
 	}
 
 	@Test

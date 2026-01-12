@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corporation and others.
+ * Copyright (c) 2000, 2025 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -30,12 +30,13 @@ import static org.eclipse.core.tests.resources.ResourceTestUtil.createTestMonito
 import static org.eclipse.core.tests.resources.ResourceTestUtil.ensureOutOfSync;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.removeFromFileSystem;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.removeFromWorkspace;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -72,14 +73,13 @@ import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Platform.OS;
 import org.eclipse.core.runtime.QualifiedName;
 import org.eclipse.core.tests.harness.FussyProgressMonitor;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.eclipse.core.tests.resources.util.WorkspaceResetExtension;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(WorkspaceResetExtension.class)
 public class IFileTest {
-
-	@Rule
-	public WorkspaceTestRule workspaceRule = new WorkspaceTestRule();
 
 	//name of files according to sync category
 	public static final String DOES_NOT_EXIST = "DoesNotExistFile";
@@ -310,7 +310,7 @@ public class IFileTest {
 		}
 	}
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		generateInterestingFiles();
 	}
@@ -338,17 +338,17 @@ public class IFileTest {
 		// setup
 		file.create(null, false, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.0", !file.isLocal(IResource.DEPTH_ZERO));
-		assertTrue("1.1", !file.getLocation().toFile().exists());
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.getLocation().toFile().exists());
 		createInFileSystem(file);
-		assertTrue("1.2", !file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
 
 		monitor.prepare();
 		file.appendContents(createRandomContentsStream(), IResource.FORCE, monitor);
 		monitor.assertUsedUp();
 
-		assertTrue("1.5", file.isLocal(IResource.DEPTH_ZERO));
-		assertTrue("1.6", file.getLocation().toFile().exists());
+		assertTrue(file.isLocal(IResource.DEPTH_ZERO));
+		assertTrue(file.getLocation().toFile().exists());
 		// cleanup
 		removeFromWorkspace(file);
 
@@ -359,13 +359,13 @@ public class IFileTest {
 		monitor.prepare();
 		file.create(null, false, monitor);
 		monitor.assertUsedUp();
-		assertTrue("2.0", !file.isLocal(IResource.DEPTH_ZERO));
-		assertTrue("2.1", !file.getLocation().toFile().exists());
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.getLocation().toFile().exists());
 
 		monitor.prepare();
 		assertThrows(CoreException.class, () -> file.appendContents(createRandomContentsStream(), IResource.FORCE, monitor));
 		monitor.sanityCheck();
-		assertTrue("2.4", !file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
 		// cleanup
 		removeFromWorkspace(file);
 
@@ -375,15 +375,15 @@ public class IFileTest {
 		monitor.prepare();
 		file.create(null, false, monitor);
 		monitor.assertUsedUp();
-		assertTrue("3.0", !file.isLocal(IResource.DEPTH_ZERO));
-		assertTrue("3.1", !file.getLocation().toFile().exists());
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.getLocation().toFile().exists());
 		createInFileSystem(file);
-		assertTrue("3.2", !file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
 
 		monitor.prepare();
 		assertThrows(CoreException.class, () -> file.appendContents(createRandomContentsStream(), IResource.NONE, monitor));
 		monitor.assertUsedUp();
-		assertTrue("3.5", !file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
 		// cleanup
 		removeFromWorkspace(file);
 
@@ -393,13 +393,13 @@ public class IFileTest {
 		monitor.prepare();
 		file.create(null, false, monitor);
 		monitor.assertUsedUp();
-		assertTrue("4.0", !file.isLocal(IResource.DEPTH_ZERO));
-		assertTrue("4.1", !file.getLocation().toFile().exists());
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.getLocation().toFile().exists());
 
 		monitor.prepare();
 		assertThrows(CoreException.class, () -> file.appendContents(createRandomContentsStream(), IResource.NONE, monitor));
 		monitor.sanityCheck();
-		assertTrue("4.4", !file.isLocal(IResource.DEPTH_ZERO));
+		assertFalse(file.isLocal(IResource.DEPTH_ZERO));
 		// cleanup
 		removeFromWorkspace(file);
 	}
@@ -478,8 +478,8 @@ public class IFileTest {
 		FussyProgressMonitor monitor = new FussyProgressMonitor();
 		derived.create(createRandomContentsStream(), IResource.DERIVED, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.0", derived.isDerived());
-		assertTrue("1.1", !derived.isTeamPrivateMember());
+		assertTrue(derived.isDerived());
+		assertFalse(derived.isTeamPrivateMember());
 
 		monitor.prepare();
 		derived.delete(false, monitor);
@@ -487,8 +487,8 @@ public class IFileTest {
 		monitor.prepare();
 		derived.create(createRandomContentsStream(), IResource.NONE, monitor);
 		monitor.assertUsedUp();
-		assertTrue("2.0", !derived.isDerived());
-		assertTrue("2.1", !derived.isTeamPrivateMember());
+		assertFalse(derived.isDerived());
+		assertFalse(derived.isTeamPrivateMember());
 	}
 	@Test
 	public void testCreateBytes() throws CoreException {
@@ -528,7 +528,7 @@ public class IFileTest {
 		// if the parent is deleted in workspace Exception is expected:
 		try {
 			orphan.write("parentDoesNotExist - not even in workspace".getBytes(), true, false, false, monitor);
-			assertFalse("should not be reached", true);
+			fail("should not be reached");
 		} catch (ResourceException expected) {
 			monitor.assertUsedUp();
 			assertFalse(orphan.exists());
@@ -560,7 +560,7 @@ public class IFileTest {
 			AtomicInteger changeCount = new AtomicInteger();
 			ResourcesPlugin.getWorkspace().addResourceChangeListener(event -> changeCount.incrementAndGet());
 			derived.write(("updateOrCreate" + i).getBytes(), false, setDerived, keepHistory, monitor);
-			assertEquals("not atomic", 1, changeCount.get());
+			assertEquals(1, changeCount.get(), "not atomic");
 			monitor.assertUsedUp();
 			if (deleteBefore) {
 				assertEquals(setDerived, derived.isDerived());
@@ -575,7 +575,7 @@ public class IFileTest {
 			derived.write(("update" + i).getBytes(), false, false, keepHistory, null);
 			boolean oldDerived2 = derived.isDerived();
 			assertEquals(oldDerived2, derived.isDerived());
-			assertEquals("not atomic", 1, changeCount.get());
+			assertEquals(1, changeCount.get(), "not atomic");
 			IFileState[] history2 = derived.getHistory(null);
 			assertEquals((keepHistory && !oldDerived2) ? 1 : 0, history2.length - history1.length);
 		}
@@ -681,14 +681,14 @@ public class IFileTest {
 			resource.write(("create").getBytes(), false, false, false, null);
 		}, workspace.getRuleFactory().createRule(resource), IWorkspace.AVOID_UPDATE, null);
 		assertTrue(resource.exists());
-		assertEquals("not atomic", 1, changeCount.get());
+		assertEquals(1, changeCount.get(), "not atomic");
 		// test that modifyRule can be used for IFile.write() if the file already exits:
 		changeCount.set(0);
 		workspace.run(pm -> {
 			resource.write(("replace").getBytes(), false, false, false, null);
 		}, workspace.getRuleFactory().modifyRule(resource), IWorkspace.AVOID_UPDATE, null);
 		assertTrue(resource.exists());
-		assertEquals("not atomic", 1, changeCount.get());
+		assertEquals(1, changeCount.get(), "not atomic");
 	}
 
 	@Test
@@ -705,7 +705,7 @@ public class IFileTest {
 		derived.create(createRandomContentsStream(), IResource.FORCE | IResource.DERIVED, monitor);
 		monitor.assertUsedUp();
 
-		assertTrue("2.0", verifier.isDeltaValid());
+		assertTrue(verifier.isDeltaValid());
 	}
 
 	@Test
@@ -718,8 +718,8 @@ public class IFileTest {
 		teamPrivate.create(createRandomContentsStream(), IResource.TEAM_PRIVATE | IResource.DERIVED, monitor);
 		monitor.assertUsedUp();
 
-		assertTrue("1.0", teamPrivate.isTeamPrivateMember());
-		assertTrue("1.1", teamPrivate.isDerived());
+		assertTrue(teamPrivate.isTeamPrivateMember());
+		assertTrue(teamPrivate.isDerived());
 
 		monitor.prepare();
 		teamPrivate.delete(false, monitor);
@@ -727,8 +727,8 @@ public class IFileTest {
 		monitor.prepare();
 		teamPrivate.create(createRandomContentsStream(), IResource.NONE, monitor);
 		monitor.assertUsedUp();
-		assertTrue("2.0", !teamPrivate.isTeamPrivateMember());
-		assertTrue("2.1", !teamPrivate.isDerived());
+		assertFalse(teamPrivate.isTeamPrivateMember());
+		assertFalse(teamPrivate.isDerived());
 	}
 
 	@Test
@@ -740,8 +740,8 @@ public class IFileTest {
 		FussyProgressMonitor monitor = new FussyProgressMonitor();
 		teamPrivate.create(createRandomContentsStream(), IResource.TEAM_PRIVATE, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.0", teamPrivate.isTeamPrivateMember());
-		assertTrue("1.1", !teamPrivate.isDerived());
+		assertTrue(teamPrivate.isTeamPrivateMember());
+		assertFalse(teamPrivate.isDerived());
 
 		monitor.prepare();
 		teamPrivate.delete(false, monitor);
@@ -749,28 +749,28 @@ public class IFileTest {
 		monitor.prepare();
 		teamPrivate.create(createRandomContentsStream(), IResource.NONE, monitor);
 		monitor.assertUsedUp();
-		assertTrue("2.0", !teamPrivate.isTeamPrivateMember());
-		assertTrue("2.1", !teamPrivate.isDerived());
+		assertFalse(teamPrivate.isTeamPrivateMember());
+		assertFalse(teamPrivate.isDerived());
 	}
 
 	@Test
 	public void testFileCreation() throws Exception {
 		IFile fileWithoutInput = projects[0].getFile("file1");
 		FussyProgressMonitor monitor = new FussyProgressMonitor();
-		assertTrue("1.0", !fileWithoutInput.exists());
+		assertFalse(fileWithoutInput.exists());
 		monitor.prepare();
 		fileWithoutInput.create(null, true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.2", fileWithoutInput.exists());
+		assertTrue(fileWithoutInput.exists());
 
 		// creation with empty content
 		IFile emptyFile = projects[0].getFile("file2");
-		assertTrue("2.0", !emptyFile.exists());
+		assertFalse(emptyFile.exists());
 		String contents = "";
 		monitor.prepare();
 		emptyFile.create(createInputStream(contents), true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("2.2", emptyFile.exists());
+		assertTrue(emptyFile.exists());
 		try (InputStream stream = emptyFile.getContents(false)) {
 			assertEquals(0, stream.available());
 			assertThat(stream).hasContent(contents);
@@ -779,12 +779,12 @@ public class IFileTest {
 
 		// creation with random content
 		IFile fileWithRandomContent = projects[0].getFile("file3");
-		assertTrue("3.0", !fileWithRandomContent.exists());
+		assertFalse(fileWithRandomContent.exists());
 		contents = createRandomString();
 		monitor.prepare();
 		fileWithRandomContent.create(createInputStream(contents), true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("3.2", fileWithRandomContent.exists());
+		assertTrue(fileWithRandomContent.exists());
 		try (InputStream fileInput = fileWithRandomContent.getContents(false)) {
 			assertThat(fileInput).hasContent(contents);
 		}
@@ -794,24 +794,24 @@ public class IFileTest {
 		monitor.prepare();
 		folder.create(true, true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("4.1", folder.exists());
+		assertTrue(folder.exists());
 
 		IFile fileOnFolder = projects[0].getFile("folder1");
 		monitor.prepare();
 		assertThrows(CoreException.class, () -> fileOnFolder.create(null, true, monitor));
 		monitor.assertUsedUp();
-		assertTrue("4.3", folder.exists());
-		assertTrue("4.4", !fileOnFolder.exists());
+		assertTrue(folder.exists());
+		assertFalse(fileOnFolder.exists());
 
 		// try to create a file under a non-existent parent
 		folder = projects[0].getFolder("folder2");
-		assertTrue("5.0", !folder.exists());
+		assertFalse(folder.exists());
 		IFile fileUnderNonExistentParent = folder.getFile("file4");
 		monitor.prepare();
 		assertThrows(CoreException.class, () -> fileUnderNonExistentParent.create(null, true, monitor));
 		monitor.assertUsedUp();
-		assertTrue("5.2", !folder.exists());
-		assertTrue("5.3", !fileUnderNonExistentParent.exists());
+		assertFalse(folder.exists());
+		assertFalse(fileUnderNonExistentParent.exists());
 
 		//create from stream that throws exceptions
 		IFile fileFromStream = projects[0].getFile("file2");
@@ -878,11 +878,11 @@ public class IFileTest {
 		FussyProgressMonitor monitor = new FussyProgressMonitor();
 		target.create(null, true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.0", target.exists());
+		assertTrue(target.exists());
 		monitor.prepare();
 		target.delete(true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.1", !target.exists());
+		assertFalse(target.exists());
 	}
 
 	@Test
@@ -891,11 +891,11 @@ public class IFileTest {
 		FussyProgressMonitor monitor = new FussyProgressMonitor();
 		target.create(createInputStream(""), true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.0", target.exists());
+		assertTrue(target.exists());
 		monitor.prepare();
 		target.delete(true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.1", !target.exists());
+		assertFalse(target.exists());
 	}
 
 	@Test
@@ -909,7 +909,7 @@ public class IFileTest {
 		monitor.prepare();
 		target.create(createRandomContentsStream(), true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.1", target.exists());
+		assertTrue(target.exists());
 	}
 
 	@Test
@@ -921,7 +921,7 @@ public class IFileTest {
 		FussyProgressMonitor monitor = new FussyProgressMonitor();
 		target.create(createRandomContentsStream(), true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.0", target.exists());
+		assertTrue(target.exists());
 	}
 
 	@Test
@@ -935,7 +935,7 @@ public class IFileTest {
 		monitor.prepare();
 		target.create(createRandomContentsStream(), true, monitor);
 		monitor.assertUsedUp();
-		assertTrue("1.1", target.exists());
+		assertTrue(target.exists());
 	}
 
 	@Test
@@ -950,8 +950,8 @@ public class IFileTest {
 		target.move(destination.getFullPath(), true, monitor);
 		monitor.assertUsedUp();
 
-		assertTrue("1.0", destination.exists());
-		assertTrue("1.1", !target.exists());
+		assertTrue(destination.exists());
+		assertFalse(target.exists());
 	}
 
 	@Test
@@ -962,7 +962,7 @@ public class IFileTest {
 		FussyProgressMonitor monitor = new FussyProgressMonitor();
 		assertThrows(CoreException.class, () -> target.create(null, true, monitor));
 		monitor.assertUsedUp();
-		assertTrue("1.1", existing.exists());
+		assertTrue(existing.exists());
 	}
 
 	/**
@@ -1083,10 +1083,10 @@ public class IFileTest {
 		for (String name : names) {
 			monitor.prepare();
 			IFile file = project.getFile(IPath.fromPortableString(name));
-			assertTrue("1.0 " + name, !file.exists());
+			assertFalse(file.exists(), name);
 			assertThrows(CoreException.class, () -> file.create(createRandomContentsStream(), true, monitor));
 			monitor.sanityCheck();
-			assertTrue("1.2 " + name, !file.exists());
+			assertFalse(file.exists(), name);
 		}
 
 		//do some tests with valid names that are *almost* invalid
@@ -1099,11 +1099,11 @@ public class IFileTest {
 		}
 		for (String name : names) {
 			IFile file = project.getFile(name);
-			assertTrue("2.0 " + name, !file.exists());
+			assertFalse(file.exists(), name + " shouldn't exist");
 			monitor.prepare();
 			file.create(createRandomContentsStream(), true, monitor);
 			monitor.assertUsedUp();
-			assertTrue("2.2 " + name, file.exists());
+			assertTrue(file.exists(), name + " should exist");
 		}
 	}
 
@@ -1197,12 +1197,7 @@ public class IFileTest {
 		IFile file = projects[0].getFile("smallfile");
 		byte[] bytes = "1234".getBytes(StandardCharsets.US_ASCII);
 		file.write(bytes, false, false, false, null);
-		try {
-			file.readNBytes(-1);
-			assertFalse(true);
-		} catch (IllegalArgumentException expected) {
-			// expected
-		}
+		assertThrows(IllegalArgumentException.class, () -> file.readNBytes(-1));
 		byte[] nBytes0 = file.readNBytes(0);
 		assertEquals(0, nBytes0.length);
 		byte[] nBytes1 = file.readNBytes(1);
@@ -1247,7 +1242,7 @@ public class IFileTest {
 					target.setContents(content, true, false, monitor);
 					monitor.assertUsedUp();
 					byte[] allBytes = target.readAllBytes();
-					assertArrayEquals(target.getName(), content, allBytes);
+					assertArrayEquals(content, allBytes, target.getName());
 					char[] allChars = target.readAllChars();
 					String readString = target.readString();
 					String expected;
@@ -1258,8 +1253,8 @@ public class IFileTest {
 						// ".txt" files autodetect charset by BOM if present
 						expected = testString;
 					}
-					assertArrayEquals(target.getName(), expected.toCharArray(), allChars);
-					assertEquals(target.getName(), expected, readString);
+					assertArrayEquals(expected.toCharArray(), allChars, target.getName());
+					assertEquals(expected, readString, target.getName());
 				}
 			}
 		}
@@ -1278,10 +1273,10 @@ public class IFileTest {
 		createInWorkspace(target);
 		target.setPersistentProperty(name, value);
 		// see if we can get the property
-		assertTrue("2.0", target.getPersistentProperty(name).equals(value));
+		assertTrue(target.getPersistentProperty(name).equals(value));
 		// see what happens if we get a non-existant property
 		QualifiedName nonExistentPropertyName = new QualifiedName("itp-test", "testNonProperty");
-		assertNull("2.1", target.getPersistentProperty(nonExistentPropertyName));
+		assertNull(target.getPersistentProperty(nonExistentPropertyName));
 
 		//set a persistent property with null qualifier
 		QualifiedName nullQualifierName = new QualifiedName(null, "foo");

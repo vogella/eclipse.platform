@@ -14,8 +14,8 @@
 package org.eclipse.debug.tests.breakpoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -23,14 +23,17 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.debug.internal.ui.model.elements.SerialExecutor;
-import org.eclipse.debug.tests.AbstractDebugTest;
-import org.junit.Test;
+import org.eclipse.debug.tests.DebugTestExtension;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-public class SerialExecutorTest extends AbstractDebugTest {
-	@Override
+@ExtendWith(DebugTestExtension.class)
+public class SerialExecutorTest {
+
+	@AfterEach
 	public void tearDown() throws Exception {
 		Job.getJobManager().cancel(this);
-		super.tearDown();
 	}
 
 	@Test
@@ -89,7 +92,7 @@ public class SerialExecutorTest extends AbstractDebugTest {
 		assertEquals(RUNS, executions.get());
 		assertEquals(0, parallelExecutions.get());
 		long minimalMillis = RUNS * WAIT_MILLIS;
-		assertTrue("Test did finish too fast (" + millis + " ms)", millis >= minimalMillis);
+		assertTrue(millis >= minimalMillis, "Test did finish too fast (" + millis + " ms)");
 	}
 
 	@Test
@@ -153,7 +156,7 @@ public class SerialExecutorTest extends AbstractDebugTest {
 			Job.getJobManager().join(this, null);
 			Job[] jobs = Job.getJobManager().find(this);
 			assertThat(jobs).isEmpty();
-			assertEquals("failed on run " + run, RUNS, executions.get());
+			assertEquals(RUNS, executions.get(), "failed on run " + run);
 			// does fail on run ~ 40 if the final job.join() is removed.
 		}
 	}

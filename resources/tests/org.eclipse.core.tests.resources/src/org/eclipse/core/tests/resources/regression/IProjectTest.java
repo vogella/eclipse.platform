@@ -71,6 +71,7 @@ public class IProjectTest {
 	}
 
 	@Test
+	@Deprecated // Explicitly tests deprecated API
 	public void test_1G5I6PV() throws CoreException {
 		/* common objects */
 		IProject project = getWorkspace().getRoot().getProject("MyProject");

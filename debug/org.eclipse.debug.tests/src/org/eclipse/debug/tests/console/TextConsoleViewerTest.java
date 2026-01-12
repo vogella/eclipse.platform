@@ -13,8 +13,8 @@
  *******************************************************************************/
 package org.eclipse.debug.tests.console;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -22,17 +22,19 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.eclipse.debug.tests.AbstractDebugTest;
+import org.eclipse.debug.tests.DebugTestExtension;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.ui.console.TextConsoleViewer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Not really a test for {@link TextConsoleViewer} yet since it only test one
  * private method of it.
  */
-public class TextConsoleViewerTest extends AbstractDebugTest {
+@ExtendWith(DebugTestExtension.class)
+public class TextConsoleViewerTest {
 
 	/**
 	 * Test override of existing styles with a new style. Typically used to
@@ -48,7 +50,7 @@ public class TextConsoleViewerTest extends AbstractDebugTest {
 		try {
 			final Method method = TextConsoleViewer.class.getDeclaredMethod("overrideStyleRange", List.class, StyleRange.class);
 			method.setAccessible(true);
-			assertTrue("Required method <" + method + "> is not static.", Modifier.isStatic(method.getModifiers()));
+			assertTrue(Modifier.isStatic(method.getModifiers()), "Required method <\" + method + \"> is not static.\"");
 
 			final List<StyleRange> styles = new ArrayList<>();
 			colorR = new Color(null, 255, 0, 0);
@@ -142,7 +144,7 @@ public class TextConsoleViewerTest extends AbstractDebugTest {
 			assertStyle(styles, 10, 20, colorW);
 			method.invoke(null, styles, new StyleRange(10, 10, colorK, null));
 			assertStyle(styles, 10, 20, colorK);
-			assertEquals("Wrong number of styles.", 1, styles.size());
+			assertEquals(1, styles.size(), "Wrong number of styles.");
 
 			// overwrite existing: start before, end after
 			method.invoke(null, styles, new StyleRange(5, 15, colorR, null));
@@ -244,7 +246,7 @@ public class TextConsoleViewerTest extends AbstractDebugTest {
 		while (o < end) {
 			final StyleRange expected = foregroundColor != null ? new StyleRange(0, 0, foregroundColor, null) : null;
 			final StyleRange actual = getStyleAtOffset(styles, o);
-			assertEquals("Got wrong style at offset " + o, generalizeStyle(expected), generalizeStyle(actual));
+			assertEquals(generalizeStyle(expected), generalizeStyle(actual), "Got wrong style at offset " + o);
 			final int step = actual != null ? actual.length : 1;
 			o += Math.min(step, 1);
 		}
@@ -298,8 +300,8 @@ public class TextConsoleViewerTest extends AbstractDebugTest {
 		}
 		int lastEnd = Integer.MIN_VALUE;
 		for (StyleRange s : styles) {
-			assertTrue("Styles overlap or not sorted.", lastEnd <= s.start);
-			assertTrue("Empty style.", s.length > 0);
+			assertTrue(lastEnd <= s.start, "Styles overlap or not sorted.");
+			assertTrue(s.length > 0, "Empty style.");
 			lastEnd = s.start + s.length;
 		}
 	}

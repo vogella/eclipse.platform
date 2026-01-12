@@ -14,12 +14,14 @@
  *******************************************************************************/
 package org.eclipse.debug.tests.viewer.model;
 
+import static org.eclipse.debug.tests.TestUtil.waitWhile;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.eclipse.debug.internal.ui.viewers.model.IInternalTreeModelViewer;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.ModelDelta;
 import org.eclipse.debug.tests.viewer.model.TestModel.TestElement;
 import org.eclipse.jface.viewers.TreePath;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests which verify the check box support.  This test is very similar to the
@@ -54,7 +56,7 @@ abstract public class CheckTests extends AbstractViewerModelTest {
 		fViewer.setInput(model.getRootElement());
 
 		// Wait for the updates to complete.
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 
 		model.validateData(fViewer, TreePath.EMPTY);
 	}
@@ -70,7 +72,7 @@ abstract public class CheckTests extends AbstractViewerModelTest {
 
 		fViewer.setInput(model.getRootElement());
 
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 
 		model.validateData(fViewer, TreePath.EMPTY);
 	}
@@ -85,7 +87,7 @@ abstract public class CheckTests extends AbstractViewerModelTest {
 		fListener.reset(TreePath.EMPTY, model.getRootElement(), -1, true, false);
 		fViewer.setInput(model.getRootElement());
 
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 
 		TestElement element = model.getRootElement().getChildren()[0];
@@ -96,9 +98,9 @@ abstract public class CheckTests extends AbstractViewerModelTest {
 		fListener.reset(elementPath, element, -1, true, false);
 		model.postDelta(delta);
 
-		waitWhile(t -> !fListener.isFinished(ITestModelUpdatesListenerConstants.MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ITestModelUpdatesListenerConstants.MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 
-		Assert.assertTrue(element.getChecked() != initialCheckState);
+		assertTrue(element.getChecked() != initialCheckState);
 	}
 
 	@Test
@@ -113,7 +115,7 @@ abstract public class CheckTests extends AbstractViewerModelTest {
 
 		// Set the input into the view and update the view.
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 
 		// Update the model
@@ -124,7 +126,7 @@ abstract public class CheckTests extends AbstractViewerModelTest {
 
 		fListener.reset(elementPath, element, -1, true, false);
 		model.postDelta(delta);
-		waitWhile(t -> !fListener.isFinished(ITestModelUpdatesListenerConstants.LABEL_COMPLETE | ITestModelUpdatesListenerConstants.MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ITestModelUpdatesListenerConstants.LABEL_COMPLETE | ITestModelUpdatesListenerConstants.MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 	}
 }

@@ -17,9 +17,9 @@ import static org.eclipse.core.resources.ResourcesPlugin.getWorkspace;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createInWorkspace;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createRandomContentsStream;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createTestMonitor;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -30,17 +30,16 @@ import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.resources.IWorkspaceRunnable;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.eclipse.core.tests.resources.util.WorkspaceResetExtension;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Tests the public API of IResourceDelta
  */
+@ExtendWith(WorkspaceResetExtension.class)
 public class IResourceDeltaTest {
-
-	@Rule
-	public WorkspaceTestRule workspaceRule = new WorkspaceTestRule();
 
 	/* some random resource handles */
 	protected IProject project1;
@@ -58,7 +57,7 @@ public class IResourceDeltaTest {
 	 * Sets up the fixture, for example, open a network connection.
 	 * This method is called before a test is executed.
 	 */
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		// Create some resource handles
 		project1 = getWorkspace().getRoot().getProject("Project" + 1);
@@ -91,31 +90,31 @@ public class IResourceDeltaTest {
 		IResourceChangeListener listener = event -> {
 			//delta relative to root
 			IResourceDelta delta = event.getDelta();
-			assertNotNull("1.0", delta.findMember(project1.getFullPath()));
-			assertNotNull("1.1", delta.findMember(file1.getFullPath()));
-			assertNotNull("1.2", delta.findMember(folder2.getFullPath()));
-			assertNotNull("1.3", delta.findMember(file3.getFullPath()));
-			assertNotNull("1.4", delta.findMember(file4.getFullPath()));
-			assertNull("1.5", delta.findMember(project2.getFullPath()));
-			assertNull("1.6", delta.findMember(file2.getFullPath()));
-			assertNull("1.7", delta.findMember(folder3.getFullPath()));
+			assertNotNull(delta.findMember(project1.getFullPath()));
+			assertNotNull(delta.findMember(file1.getFullPath()));
+			assertNotNull(delta.findMember(folder2.getFullPath()));
+			assertNotNull(delta.findMember(file3.getFullPath()));
+			assertNotNull(delta.findMember(file4.getFullPath()));
+			assertNull(delta.findMember(project2.getFullPath()));
+			assertNull(delta.findMember(file2.getFullPath()));
+			assertNull(delta.findMember(folder3.getFullPath()));
 
 			//delta relative to project
 			delta = delta.findMember(project1.getFullPath());
-			assertNotNull("2.1", delta.findMember(file1.getProjectRelativePath()));
-			assertNotNull("2.2", delta.findMember(folder2.getProjectRelativePath()));
-			assertNotNull("2.3", delta.findMember(file3.getProjectRelativePath()));
-			assertNotNull("2.4", delta.findMember(file4.getProjectRelativePath()));
-			assertNull("2.5", delta.findMember(project2.getFullPath()));
-			assertNull("2.6", delta.findMember(file2.getProjectRelativePath()));
-			assertNull("2.7", delta.findMember(folder3.getProjectRelativePath()));
-			assertNull("2.8", delta.findMember(project1.getFullPath()));
-			assertNull("2.9", delta.findMember(file1.getFullPath()));
+			assertNotNull(delta.findMember(file1.getProjectRelativePath()));
+			assertNotNull(delta.findMember(folder2.getProjectRelativePath()));
+			assertNotNull(delta.findMember(file3.getProjectRelativePath()));
+			assertNotNull(delta.findMember(file4.getProjectRelativePath()));
+			assertNull(delta.findMember(project2.getFullPath()));
+			assertNull(delta.findMember(file2.getProjectRelativePath()));
+			assertNull(delta.findMember(folder3.getProjectRelativePath()));
+			assertNull(delta.findMember(project1.getFullPath()));
+			assertNull(delta.findMember(file1.getFullPath()));
 
 			//delta with no children
 			delta = delta.findMember(file1.getProjectRelativePath());
-			assertEquals("3.1", delta, delta.findMember(IPath.ROOT));
-			assertNull("3.2", delta.findMember(IPath.fromOSString("foo")));
+			assertEquals(delta, delta.findMember(IPath.ROOT));
+			assertNull(delta.findMember(IPath.fromOSString("foo")));
 		};
 		getWorkspace().addResourceChangeListener(listener);
 

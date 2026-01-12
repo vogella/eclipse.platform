@@ -15,7 +15,9 @@
 package org.eclipse.debug.tests.viewer.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.eclipse.debug.tests.TestUtil.waitWhile;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.regex.Pattern;
 
@@ -31,7 +33,9 @@ import org.eclipse.jface.viewers.TreePath;
 import org.eclipse.jface.viewers.TreeSelection;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerFilter;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 /**
  * Tests that verify that the viewer property retrieves all the content
@@ -40,6 +44,13 @@ import org.junit.Test;
  * @since 3.8
  */
 abstract public class FilterTests extends AbstractViewerModelTest implements ITestModelUpdatesListenerConstants {
+
+	private TestInfo testInfo;
+
+	@BeforeEach
+	void storeTestInfo(TestInfo info) {
+		this.testInfo = info;
+	}
 
 	@Override
 	protected TestModelUpdatesListener createListener(IInternalTreeModelViewer viewer) {
@@ -146,7 +157,7 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 		fViewer.setInput(model.getRootElement());
 
 		// Wait for the updates to complete.
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		model.validateData(fViewer, TreePath.EMPTY, false, filters);
 	}
@@ -175,7 +186,7 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 
 		fViewer.setInput(model.getRootElement());
 
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 	}
 
 
@@ -212,9 +223,9 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 
 		// Populate the view (all elements containing a "2" will be filtered out.
 		fViewer.setInput(model.getRootElement());
-		TestUtil.waitForJobs(name.getMethodName(), 300, 5000);
+		TestUtil.waitForJobs(testInfo.getDisplayName(), 300, 5000);
 
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		// Switch out element "201" which is filtered out, with a "replaced element" which should NOT be
 		// filtered out.
@@ -222,12 +233,12 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 		IModelDelta replaceDelta = model.replaceElementChild(TreePath.EMPTY, 200, replacedElement);
 		fListener.reset();
 		model.postDelta(replaceDelta);
-		waitWhile(t -> !fListener.isFinished(MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 
 		// Reposition the viewer to make element 100 the top element, making the replaced element visible.
 		fListener.reset();
 		fViewer.reveal(TreePath.EMPTY, 150);
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		// Verify that the replaced element is in viewer now (i.e. it's not filtered out.
 		TreePath[] replacedElementPaths = fViewer.getElementPaths(replacedElement);
@@ -261,9 +272,9 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 
 		// Populate the view (all elements containing a "2" will be filtered out.
 		fViewer.setInput(model.getRootElement());
-		TestUtil.waitForJobs(name.getMethodName(), 300, 5000);
+		TestUtil.waitForJobs(testInfo.getDisplayName(), 300, 5000);
 
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		// Switch out element "201" which is filtered out, with a "replaced element" which should NOT be
 		// filtered out.
@@ -271,12 +282,12 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 		model.replaceElementChild(TreePath.EMPTY, 200, replacedElement);
 		fListener.reset();
 		model.postDelta(new ModelDelta(model.getRootElement(), IModelDelta.CONTENT));
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		// Reposition the viewer to make element 100 the top element, making the replaced element visible.
 		fListener.reset();
 		fViewer.reveal(TreePath.EMPTY, 150);
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		// Verify that the replaced element is in viewer now (i.e. it's not filtered out.
 		TreePath[] replacedElementPaths = fViewer.getElementPaths(replacedElement);
@@ -317,9 +328,9 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 
 		// Populate the view (all elements containing a "2" will be filtered out.
 		fViewer.setInput(model.getRootElement());
-		TestUtil.waitForJobs(name.getMethodName(), 300, 5000);
+		TestUtil.waitForJobs(testInfo.getDisplayName(), 300, 5000);
 
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		// Turn off filters and refresh.
 		filters1 = new ViewerFilter[0];
@@ -327,7 +338,7 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 
 		fListener.reset();
 		model.postDelta(new ModelDelta(model.getRootElement(), IModelDelta.CONTENT));
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		model.validateData(fViewer, TreePath.EMPTY, false, filters1);
 	}
@@ -344,7 +355,7 @@ abstract public class FilterTests extends AbstractViewerModelTest implements ITe
 
 		// Set the input into the view and update the view.
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY, true);
 
 		StateTests.expandAlternateElements(fListener, model, true);
@@ -366,17 +377,17 @@ new TreePath[] { model.findElement("5"), model.findElement("5.1"), model.findEle
 
 		// Post the refresh delta
 		model.postDelta(new ModelDelta(model.getRootElement(), IModelDelta.CONTENT));
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE | STATE_RESTORE_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE | STATE_RESTORE_COMPLETE), createListenerErrorMessage());
 
 		// Validate data
 		model.validateData(fViewer, TreePath.EMPTY, true, filters);
-		assertTrue(!getInternalViewer().getExpandedState(model.findElement("2"))); //$NON-NLS-1$
+		assertFalse(getInternalViewer().getExpandedState(model.findElement("2"))); //$NON-NLS-1$
 		assertTrue(getInternalViewer().getExpandedState(model.findElement("3"))); //$NON-NLS-1$
 		assertTrue(getInternalViewer().getExpandedState(model.findElement("3.1"))); //$NON-NLS-1$
-		assertTrue(!getInternalViewer().getExpandedState(model.findElement("4"))); //$NON-NLS-1$
+		assertFalse(getInternalViewer().getExpandedState(model.findElement("4"))); //$NON-NLS-1$
 		assertTrue(getInternalViewer().getExpandedState(model.findElement("5"))); //$NON-NLS-1$
 		assertTrue(getInternalViewer().getExpandedState(model.findElement("5.1"))); //$NON-NLS-1$
-		assertTrue(!getInternalViewer().getExpandedState(model.findElement("6"))); //$NON-NLS-1$
+		assertFalse(getInternalViewer().getExpandedState(model.findElement("6"))); //$NON-NLS-1$
 		assertTrue( StateTests.areTreeSelectionsEqual(originalSelection, (ITreeSelection)fViewer.getSelection()) );
 
 		// Note: in past it was observed sub-optimal coalescing in this test due
@@ -391,17 +402,17 @@ new TreePath[] { model.findElement("5"), model.findElement("5.1"), model.findEle
 		fListener.reset();
 		fListener.addUpdates(getInternalViewer(), TreePath.EMPTY, model.getRootElement(), filters, -1, ALL_UPDATES_COMPLETE);
 		model.postDelta(new ModelDelta(model.getRootElement(), IModelDelta.CONTENT));
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE | STATE_RESTORE_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE | STATE_RESTORE_COMPLETE), createListenerErrorMessage());
 
 		// Validate data
 		model.validateData(fViewer, TreePath.EMPTY, true, filters);
-		assertTrue(!getInternalViewer().getExpandedState(model.findElement("2"))); //$NON-NLS-1$
+		assertFalse(getInternalViewer().getExpandedState(model.findElement("2"))); //$NON-NLS-1$
 		assertTrue(getInternalViewer().getExpandedState(model.findElement("3"))); //$NON-NLS-1$
 		assertTrue(getInternalViewer().getExpandedState(model.findElement("3.1"))); //$NON-NLS-1$
-		assertTrue(!getInternalViewer().getExpandedState(model.findElement("4"))); //$NON-NLS-1$
+		assertFalse(getInternalViewer().getExpandedState(model.findElement("4"))); //$NON-NLS-1$
 		assertTrue(getInternalViewer().getExpandedState(model.findElement("5"))); //$NON-NLS-1$
 		assertTrue(getInternalViewer().getExpandedState(model.findElement("5.1"))); //$NON-NLS-1$
-		assertTrue(!getInternalViewer().getExpandedState(model.findElement("6"))); //$NON-NLS-1$
+		assertFalse(getInternalViewer().getExpandedState(model.findElement("6"))); //$NON-NLS-1$
 		assertTrue( StateTests.areTreeSelectionsEqual(originalSelection, (ITreeSelection)fViewer.getSelection()) );
 
 	}

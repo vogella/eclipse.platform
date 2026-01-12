@@ -14,7 +14,8 @@
  *******************************************************************************/
 package org.eclipse.debug.tests.viewer.model;
 
-import static org.junit.Assert.assertEquals;
+import static org.eclipse.debug.tests.TestUtil.waitWhile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.eclipse.debug.internal.ui.viewers.model.IInternalTreeModelViewer;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IModelDelta;
@@ -23,7 +24,7 @@ import org.eclipse.debug.tests.viewer.model.TestModel.TestElement;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.TreePath;
 import org.eclipse.jface.viewers.TreeSelection;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests that verify that the viewer property retrieves all the content
@@ -75,7 +76,7 @@ abstract public class LazyTests extends AbstractViewerModelTest implements ITest
 		// Populate initial view content
 		fListener.reset(TreePath.EMPTY, model.getRootElement(), 1, true, true);
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		// Create delta to expand the "1" element.
 		TestElement rootElement = model.getRootElement();
@@ -98,7 +99,7 @@ abstract public class LazyTests extends AbstractViewerModelTest implements ITest
 		}
 		model.postDelta(rootDelta);
 
-		waitWhile(t -> !fListener.isFinished(CONTENT_SEQUENCE_COMPLETE | MODEL_CHANGED_COMPLETE | LABEL_SEQUENCE_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(CONTENT_SEQUENCE_COMPLETE | MODEL_CHANGED_COMPLETE | LABEL_SEQUENCE_COMPLETE), createListenerErrorMessage());
 	}
 
 	/**
@@ -123,7 +124,7 @@ abstract public class LazyTests extends AbstractViewerModelTest implements ITest
 		fListener.setFailOnRedundantUpdates(false);
 		fViewer.setInput(model.getRootElement());
 		fListener.addLabelUpdate(model.findElement("1.0")); //$NON-NLS-1$
-		waitWhile(t -> !fListener.isFinished(CONTENT_SEQUENCE_COMPLETE | LABEL_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(CONTENT_SEQUENCE_COMPLETE | LABEL_COMPLETE), createListenerErrorMessage());
 
 		// Set selection so that the initial selection is not empty
 		fViewer.setSelection(new TreeSelection(new TreePath[] { model.findElement("1.0") })); //$NON-NLS-1$
@@ -148,7 +149,7 @@ abstract public class LazyTests extends AbstractViewerModelTest implements ITest
 		fListener.addLabelUpdate(_1_0_newElementPath);
 		model.postDelta(rootDelta);
 
-		waitWhile(t -> !fListener.isFinished(MODEL_CHANGED_COMPLETE | LABEL_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(MODEL_CHANGED_COMPLETE | LABEL_COMPLETE), createListenerErrorMessage());
 
 
 		assertEquals(((IStructuredSelection)fViewer.getSelection()).getFirstElement(), _1_0_newElement);
@@ -165,7 +166,7 @@ abstract public class LazyTests extends AbstractViewerModelTest implements ITest
 		// Populate initial view content
 		fListener.reset(TreePath.EMPTY, model.getRootElement(), -1, true, true);
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(CONTENT_SEQUENCE_COMPLETE | LABEL_SEQUENCE_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(CONTENT_SEQUENCE_COMPLETE | LABEL_SEQUENCE_COMPLETE), createListenerErrorMessage());
 
 		// Turn off autoexpand
 		fViewer.setAutoExpandLevel(0);
@@ -174,7 +175,7 @@ abstract public class LazyTests extends AbstractViewerModelTest implements ITest
 		fListener.reset();
 		fListener.setFailOnRedundantUpdates(false);
 		fViewer.reveal(model.findElement("1"), 500); //$NON-NLS-1$
-		waitWhile(t -> !fListener.isFinished(CONTENT_SEQUENCE_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(CONTENT_SEQUENCE_COMPLETE), createListenerErrorMessage());
 
 		// Create delta to refresh the "1" element.
 		TestElement rootElement = model.getRootElement();

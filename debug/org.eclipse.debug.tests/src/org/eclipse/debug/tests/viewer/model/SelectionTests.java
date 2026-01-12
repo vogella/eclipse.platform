@@ -14,8 +14,9 @@
  *******************************************************************************/
 package org.eclipse.debug.tests.viewer.model;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.eclipse.debug.tests.TestUtil.waitWhile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +31,7 @@ import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TreePath;
 import org.eclipse.jface.viewers.TreeSelection;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests to verify that the viewer properly handles selection changes.
@@ -56,7 +57,7 @@ abstract public class SelectionTests extends AbstractViewerModelTest implements 
 		fViewer.setAutoExpandLevel(-1);
 		fListener.reset(TreePath.EMPTY, model.getRootElement(), -1, true, false);
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 		return model;
 	}
@@ -138,14 +139,14 @@ abstract public class SelectionTests extends AbstractViewerModelTest implements 
 		ModelDelta delta_3_3_3 = model.getElementDelta(baseDelta, path_3_3_3, false);
 		delta_3_3_3.setFlags(IModelDelta.SELECT);
 		fViewer.updateViewer(baseDelta);
-		waitWhile(t -> !fListener.isFinished(MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 		assertEquals(selection_3_3_1, fViewer.getSelection());
 
 		// Add the *force* flag to the selection delta and update viewer again.
 		// Verify that selection did change.
 		delta_3_3_3.setFlags(IModelDelta.SELECT | IModelDelta.FORCE);
 		fViewer.updateViewer(baseDelta);
-		waitWhile(t -> !fListener.isFinished(MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 		assertEquals(selection_3_3_3, fViewer.getSelection());
 	}
 
@@ -183,7 +184,7 @@ abstract public class SelectionTests extends AbstractViewerModelTest implements 
 		// delta only wait for the delta to be processed.
 		fListener.reset();
 		model.postDelta(delta);
-		waitWhile(t -> !fListener.isFinished(ITestModelUpdatesListenerConstants.MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ITestModelUpdatesListenerConstants.MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 
 		// Check to make sure the selection was made
 		//assertTrue(listener.fEvents.size() == 1);
@@ -228,7 +229,7 @@ abstract public class SelectionTests extends AbstractViewerModelTest implements 
 
 		// Refresh the viewer
 		model.postDelta( new ModelDelta(model.getRootElement(), IModelDelta.CONTENT) );
-		waitWhile(t -> !fListener.isFinished(ITestModelUpdatesListenerConstants.ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ITestModelUpdatesListenerConstants.ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		// Check to make sure the selection was made
 		// Commented out until JFace bug 219887 is fixed.

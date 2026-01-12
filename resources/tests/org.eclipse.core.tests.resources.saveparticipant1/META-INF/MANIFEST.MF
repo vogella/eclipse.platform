@@ -4,12 +4,11 @@ Automatic-Module-Name: org.eclipse.core.tests.resources.saveparticipant1
 Bundle-Name: Save Participant 1
 Bundle-Activator: org.eclipse.core.tests.resources.saveparticipant1.SaveParticipant1Plugin
 Bundle-SymbolicName: org.eclipse.core.tests.resources.saveparticipant1
-Bundle-Version: 3.6.200.qualifier
+Bundle-Version: 3.6.300.qualifier
 Bundle-Vendor: Eclipse.org
 Export-Package: org.eclipse.core.tests.resources.saveparticipant1
 Require-Bundle: org.eclipse.core.resources,
  org.eclipse.core.tests.resources,
- org.junit,
  org.eclipse.core.runtime
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ActivationPolicy: lazy

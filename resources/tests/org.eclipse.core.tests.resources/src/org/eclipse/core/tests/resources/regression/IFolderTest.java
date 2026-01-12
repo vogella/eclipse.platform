@@ -20,9 +20,9 @@ import static org.eclipse.core.tests.resources.ResourceTestUtil.createInFileSyst
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createInWorkspace;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createTestMonitor;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.isReadOnlySupported;
-import static org.junit.Assume.assumeTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.function.Predicate;
 import org.eclipse.core.filesystem.EFS;
@@ -51,11 +51,11 @@ public class IFolderTest {
 	public void testBug25662() throws CoreException {
 		// We need to know whether or not we can unset the read-only flag
 		// in order to perform this test.
-		assumeTrue("only relevant for platforms supporting read-only files", isReadOnlySupported());
+		assumeTrue(isReadOnlySupported(), "only relevant for platforms supporting read-only files");
 
 		// Only run this test on Linux for now since Windows lets you create
 		// a file within a read-only folder.
-		assumeTrue("only relevant on Linux", OS.isLinux());
+		assumeTrue(OS.isLinux(), "only relevant on Linux");
 
 		IProject project = getWorkspace().getRoot().getProject("MyProject");
 		IFolder parentFolder = project.getFolder("parentFolder");
@@ -76,6 +76,7 @@ public class IFolderTest {
 	 * Bug 11510 [resources] Non-local folders do not become local when directory is created.
 	 */
 	@Test
+	@Deprecated // Explicitly tests deprecated API
 	public void testBug11510() throws Exception {
 		IWorkspaceRoot root = getWorkspace().getRoot();
 		IProject project = root.getProject("TestProject");

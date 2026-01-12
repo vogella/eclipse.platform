@@ -63,4 +63,14 @@ public class CustomSessionConfigurationDummy implements CustomSessionConfigurati
 		return this;
 	}
 
+	@Override
+	public CustomSessionConfiguration setConfigIniValue(String key, String value) {
+		return this;
+	}
+
+	@Override
+	public CustomSessionConfiguration setSystemProperty(String key, String value) {
+		return this;
+	}
+
 }

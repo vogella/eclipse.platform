@@ -8,7 +8,7 @@ This repository contains the core Eclipse Platform components that form the basi
 
 **Key Technologies:**
 - Language: Java (JDK 21)
-- Build: Maven 3.9.11 with Eclipse Tycho (OSGi/RCP build tooling)
+- Build: Maven 3.9.12 with Eclipse Tycho (OSGi/RCP build tooling)
 - Architecture: OSGi bundles organized as Eclipse plugins
 - Testing: JUnit with Tycho Surefire plugin
 
@@ -49,7 +49,7 @@ Key profiles:
 **Test Organization:**
 - Tests are in `<module>/tests/` subdirectories (e.g., `runtime/tests/`, `resources/tests/`)
 - Test bundles follow naming: `org.eclipse.<area>.tests.<component>`
-- Tests use JUnit 4/5 with Tycho Surefire
+- Tests use JUnit 5 with Tycho Surefire
 
 **Running Tests:**
 ```bash

@@ -19,11 +19,11 @@ package org.eclipse.core.tests.resources;
 import static org.eclipse.core.resources.ResourcesPlugin.getWorkspace;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createInFileSystem;
 import static org.eclipse.core.tests.resources.ResourceTestUtil.createInWorkspace;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
 import java.net.URI;
@@ -41,9 +41,12 @@ import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.eclipse.core.tests.resources.util.FileStoreAutoDeleteExtension;
+import org.eclipse.core.tests.resources.util.WorkspaceResetExtension;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
  * Tests API for save/load refresh snapshots introduced in 3.6M6 (bug 301563):
@@ -53,10 +56,11 @@ import org.junit.Test;
  * <li>{@link IProject#SNAPSHOT_TREE}
  * </ul>
  */
+@ExtendWith(WorkspaceResetExtension.class)
 public class ProjectSnapshotTest {
 
-	@Rule
-	public WorkspaceTestRule workspaceRule = new WorkspaceTestRule();
+	@RegisterExtension
+	private final FileStoreAutoDeleteExtension fileStoreExtension = new FileStoreAutoDeleteExtension();
 
 	/** location of refresh snapshot file */
 	private static final String REFRESH_SNAPSHOT_FILE_LOCATION = "resource-index.zip";
@@ -64,7 +68,7 @@ public class ProjectSnapshotTest {
 	protected IProject[] projects = new IProject[2];
 
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		projects[0] = getWorkspace().getRoot().getProject("p1");
 		projects[1] = getWorkspace().getRoot().getProject("p2");
@@ -125,10 +129,10 @@ public class ProjectSnapshotTest {
 		IFolder folder = project.getFolder("folder");
 		IFolder subfolder = folder.getFolder("subfolder");
 		IFile subfile = folder.getFile("subfile");
-		assertTrue("1.1", file.exists());
-		assertTrue("1.2", folder.exists());
-		assertTrue("1.3", subfolder.exists());
-		assertTrue("1.4", subfile.exists());
+		assertTrue(file.exists());
+		assertTrue(folder.exists());
+		assertTrue(subfolder.exists());
+		assertTrue(subfile.exists());
 	}
 
 	/*
@@ -176,12 +180,12 @@ public class ProjectSnapshotTest {
 		// perform refresh to create resource delta against snapshot
 		project.refreshLocal(IResource.DEPTH_INFINITE, null);
 		verifier.verifyDelta(null);
-		assertTrue("1.0 " + verifier.getMessage(), verifier.isDeltaValid());
+		assertTrue(verifier.isDeltaValid(), verifier.getMessage());
 		// verify that the resources are no longer thought to exist
-		assertTrue("1.1", !file.exists());
-		assertTrue("1.2", !folder.exists());
-		assertTrue("1.3", !subfolder.exists());
-		assertTrue("1.4", !subfile.exists());
+		assertFalse(file.exists());
+		assertFalse(folder.exists());
+		assertFalse(subfolder.exists());
+		assertFalse(subfile.exists());
 	}
 
 	/*
@@ -214,10 +218,10 @@ public class ProjectSnapshotTest {
 		IFolder folder = project.getFolder("folder");
 		IFolder subfolder = folder.getFolder("subfolder");
 		IFile subfile = folder.getFile("subfile");
-		assertTrue("1.1", file.exists());
-		assertTrue("1.2", folder.exists());
-		assertTrue("1.3", subfolder.exists());
-		assertTrue("1.4", subfile.exists());
+		assertTrue(file.exists());
+		assertTrue(folder.exists());
+		assertTrue(subfolder.exists());
+		assertTrue(subfile.exists());
 	}
 
 	/*
@@ -259,10 +263,10 @@ public class ProjectSnapshotTest {
 		IFolder folder = project.getFolder("folder");
 		IFolder subfolder = folder.getFolder("subfolder");
 		IFile subfile = folder.getFile("subfile");
-		assertTrue("1.1", file.exists());
-		assertTrue("1.2", folder.exists());
-		assertTrue("1.3", subfolder.exists());
-		assertTrue("1.4", subfile.exists());
+		assertTrue(file.exists());
+		assertTrue(folder.exists());
+		assertTrue(subfolder.exists());
+		assertTrue(subfile.exists());
 	}
 
 	@Test
@@ -273,11 +277,11 @@ public class ProjectSnapshotTest {
 		((ProjectDescription) description).setSnapshotLocationURI(URI.create("./relative/uri.zip"));
 		project.create(description, null);
 		createInFileSystem(project.getFolder("foo"));
-		assertFalse("1.0", project.getFolder("foo").exists());
+		assertFalse(project.getFolder("foo").exists());
 		// expect to see warning logged, but project open successfully and refresh
 		project.open(null);
-		assertTrue("1.1", project.isOpen());
-		assertTrue("1.2", project.getFolder("foo").exists());
+		assertTrue(project.isOpen());
+		assertTrue(project.getFolder("foo").exists());
 		assertThrows(CoreException.class, () -> project.saveSnapshot(Project.SNAPSHOT_SET_AUTOLOAD,
 				URI.create("NON_EXISTING/foo/bar.zip"), null));
 	}
@@ -287,14 +291,14 @@ public class ProjectSnapshotTest {
 		IProject project = getWorkspace().getRoot().getProject("project");
 		IProjectDescription description = getWorkspace().newProjectDescription(project.getName());
 		// create project with non-existing snapshot autoload location
-		((ProjectDescription) description).setSnapshotLocationURI(workspaceRule.getTempStore().toURI());
+		((ProjectDescription) description).setSnapshotLocationURI(fileStoreExtension.getTempStore().toURI());
 		project.create(description, null);
 		createInFileSystem(project.getFile("foo"));
-		assertFalse("1.0", project.getFile("foo").exists());
+		assertFalse(project.getFile("foo").exists());
 		project.open(null);
 		// expect warning logged but project open and refreshed
-		assertTrue("1.1", project.isOpen());
-		assertTrue("1.2", project.getFile("foo").exists());
+		assertTrue(project.isOpen());
+		assertTrue(project.getFile("foo").exists());
 	}
 
 	/*
@@ -307,7 +311,7 @@ public class ProjectSnapshotTest {
 	@Test
 	public void testAutoLoadWithRename() throws Throwable {
 		// create project p0 outside the workspace
-		IFileStore tempStore = workspaceRule.getTempStore();
+		IFileStore tempStore = fileStoreExtension.getTempStore();
 		tempStore.mkdir(EFS.NONE, null);
 		IProject project = getWorkspace().getRoot().getProject("project");
 		IProjectDescription description = getWorkspace().newProjectDescription(project.getName());
@@ -345,16 +349,16 @@ public class ProjectSnapshotTest {
 		IFolder folder = project.getFolder("folder");
 		IFolder subfolder = folder.getFolder("subfolder");
 		IFile subfile = folder.getFile("subfile");
-		assertTrue("1.1", file.exists());
-		assertTrue("1.2", folder.exists());
-		assertTrue("1.3", subfolder.exists());
-		assertTrue("1.4", subfile.exists());
+		assertTrue(file.exists());
+		assertTrue(folder.exists());
+		assertTrue(subfolder.exists());
+		assertTrue(subfile.exists());
 	}
 
 	@Test
 	public void testResetAutoLoadSnapshot() throws Throwable {
 		IProject project = projects[0];
-		URI tempURI = workspaceRule.getTempStore().toURI();
+		URI tempURI = fileStoreExtension.getTempStore().toURI();
 		IFile projectFile = project.getFile(".project");
 		long stamp = projectFile.getModificationStamp();
 
@@ -363,22 +367,22 @@ public class ProjectSnapshotTest {
 		ProjectDescription desc = (ProjectDescription) project.getDescription();
 		desc.setSnapshotLocationURI(null);
 		project.setDescription(desc, null);
-		assertEquals("1.0", stamp, projectFile.getModificationStamp());
+		assertEquals(stamp, projectFile.getModificationStamp());
 
 		// set or reset a snapshot -> .project file changed, unless setting to same existing URI
 		project.saveSnapshot(Project.SNAPSHOT_SET_AUTOLOAD, tempURI, null);
-		assertEquals("2.0", tempURI, ((ProjectDescription) project.getDescription()).getSnapshotLocationURI());
+		assertEquals(tempURI, ((ProjectDescription) project.getDescription()).getSnapshotLocationURI());
 		long stamp2 = projectFile.getModificationStamp();
-		assertFalse("2.1", stamp == stamp2);
+		assertFalse(stamp == stamp2);
 		project.saveSnapshot(Project.SNAPSHOT_SET_AUTOLOAD, tempURI, null);
-		assertEquals("2.2", stamp2, projectFile.getModificationStamp());
+		assertEquals(stamp2, projectFile.getModificationStamp());
 
 		//project.saveSnapshot(Project.SNAPSHOT_SET_AUTOLOAD, null, null);
 		desc = (ProjectDescription) project.getDescription();
 		desc.setSnapshotLocationURI(null);
 		project.setDescription(desc, null);
-		assertNull("3.0", ((ProjectDescription) project.getDescription()).getSnapshotLocationURI());
-		assertFalse("3.1", stamp2 == projectFile.getModificationStamp());
+		assertNull(((ProjectDescription) project.getDescription()).getSnapshotLocationURI());
+		assertFalse(stamp2 == projectFile.getModificationStamp());
 
 		// setting snapshot while project is closed is forbidden
 		project.close(null);

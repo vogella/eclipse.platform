@@ -14,16 +14,17 @@
  *******************************************************************************/
 package org.eclipse.ant.tests.ui.editor;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.eclipse.ant.tests.ui.testplugin.AntUITestUtil.getIFile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 
 import org.eclipse.ant.internal.ui.editor.AntEditor;
 import org.eclipse.ant.internal.ui.editor.text.XMLTextHover;
 import org.eclipse.ant.tests.ui.editor.performance.EditorTestHelper;
-import org.eclipse.ant.tests.ui.testplugin.AbstractAntUITest;
+import org.eclipse.ant.tests.ui.testplugin.AntUITest;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
@@ -32,10 +33,11 @@ import org.eclipse.jface.text.ITextSelection;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.PartInitException;
 import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("restriction")
-public class AntEditorTests extends AbstractAntUITest {
+@AntUITest
+public class AntEditorTests {
 
 	@Test
 	public void testHoverForPath() throws PartInitException, BadLocationException {
@@ -45,9 +47,10 @@ public class AntEditorTests extends AbstractAntUITest {
 		int offset = getOffsetWithinLine(editor, 9, 20);
 		IRegion region = hover.getHoverRegion(editor.getViewer(), offset);
 		String hoverText = hover.getHoverInfo(editor.getViewer(), region);
-		assertNotNull("Expecting a hovertext object", hoverText); //$NON-NLS-1$
+		assertNotNull(hoverText, "Expecting a hovertext object"); //$NON-NLS-1$
 		String correctResultRegEx = "<html><body text=\"#.*\" bgcolor=\"#.*\"><h5>Path Elements:</h5><ul><li>.*</html>"; //$NON-NLS-1$
-		assertTrue("Expected the following hover text to match regex: " + correctResultRegEx, hoverText.matches(correctResultRegEx)); //$NON-NLS-1$
+		assertTrue(hoverText.matches(correctResultRegEx),
+				"Expected the following hover text to match regex: " + correctResultRegEx); //$NON-NLS-1$
 	}
 
 	@Test
@@ -58,9 +61,10 @@ public class AntEditorTests extends AbstractAntUITest {
 		int offset = getOffsetWithinLine(editor, 42, 13);
 		IRegion region = hover.getHoverRegion(editor.getViewer(), offset);
 		String hoverText = hover.getHoverInfo(editor.getViewer(), region);
-		assertNotNull("Expecting a hovertext object", hoverText); //$NON-NLS-1$
+		assertNotNull(hoverText, "Expecting a hovertext object"); //$NON-NLS-1$
 		String correctResult = "<p>value with spaces</body></html>"; //$NON-NLS-1$
-		assertTrue("Expected the following hover text to end with: " + correctResult, hoverText.endsWith(correctResult)); //$NON-NLS-1$
+		assertTrue(hoverText.endsWith(correctResult),
+				"Expected the following hover text to end with: " + correctResult); //$NON-NLS-1$
 	}
 
 	@Test
@@ -72,7 +76,7 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "property", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals(selection.getText(), "property", "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	@Test
@@ -83,9 +87,10 @@ public class AntEditorTests extends AbstractAntUITest {
 		int offset = getOffsetWithinLine(editor, 45, 25);
 		IRegion region = hover.getHoverRegion(editor.getViewer(), offset);
 		String hoverText = hover.getHoverInfo(editor.getViewer(), region);
-		assertNotNull("Expecting a hovertext object", hoverText); //$NON-NLS-1$
+		assertNotNull(hoverText, "Expecting a hovertext object"); //$NON-NLS-1$
 		String correctResult = "<h5>Includes:</h5><li>*.xml</li><p><p><h5>Excludes:</h5><li>**/*Test*</li></body></html>"; //$NON-NLS-1$
-		assertTrue("Expected the following hover text to end with: " + correctResult + "was: " + hoverText, hoverText.endsWith(correctResult)); //$NON-NLS-1$ //$NON-NLS-2$
+		assertTrue(hoverText.endsWith(correctResult),
+				"Expected the following hover text to end with: " + correctResult + "was: " + hoverText); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	@Test
@@ -96,9 +101,10 @@ public class AntEditorTests extends AbstractAntUITest {
 		int offset = getOffsetWithinLine(editor, 46, 25);
 		IRegion region = hover.getHoverRegion(editor.getViewer(), offset);
 		String hoverText = hover.getHoverInfo(editor.getViewer(), region);
-		assertNotNull("Expecting a hovertext object", hoverText); //$NON-NLS-1$
+		assertNotNull(hoverText, "Expecting a hovertext object"); //$NON-NLS-1$
 		String correctResult = "Ant UI Tests" + File.separatorChar + "buildfiles" + File.separatorChar + "nothere not found."; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-		assertTrue("Expected the following hover text to ends with: " + correctResult, hoverText.endsWith(correctResult)); //$NON-NLS-1$
+		assertTrue(hoverText.endsWith(correctResult),
+				"Expected the following hover text to ends with: " + correctResult); //$NON-NLS-1$
 	}
 
 	@Test
@@ -109,19 +115,21 @@ public class AntEditorTests extends AbstractAntUITest {
 		int offset = getOffsetWithinLine(editor, 44, 20);
 		IRegion region = hover.getHoverRegion(editor.getViewer(), offset);
 		String hoverText = hover.getHoverInfo(editor.getViewer(), region);
-		assertNotNull("Expecting a hovertext object", hoverText); //$NON-NLS-1$
-		assertTrue("Expected to see '<h5>Includes:</h5><li>include</li>'", hoverText.contains("<h5>Includes:</h5><li>include</li>")); //$NON-NLS-1$ //$NON-NLS-2$
-		assertTrue("Expected to see '<h5>Excludes:</h5><li>exclude</li>'", hoverText.contains("<h5>Excludes:</h5><li>exclude</li>")); //$NON-NLS-1$ //$NON-NLS-2$
+		assertNotNull(hoverText, "Expecting a hovertext object"); //$NON-NLS-1$
+		assertTrue(hoverText.contains("<h5>Includes:</h5><li>include</li>"), //$NON-NLS-1$
+				"Expected to see '<h5>Includes:</h5><li>include</li>'"); //$NON-NLS-1$
+		assertTrue(hoverText.contains("<h5>Excludes:</h5><li>exclude</li>"), //$NON-NLS-1$
+				"Expected to see '<h5>Excludes:</h5><li>exclude</li>'"); //$NON-NLS-1$
 		String text = "<li>**" + File.separator + "SCCS" + File.separator + "**</li>"; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-		assertTrue("Expected to see '<li>**/SCCS/**</li>'", hoverText.contains(text)); //$NON-NLS-1$
+		assertTrue(hoverText.contains(text), "Expected to see '<li>**/SCCS/**</li>'"); //$NON-NLS-1$
 		text = "<li>**" + File.separator + ".DS_Store</li>"; //$NON-NLS-1$ //$NON-NLS-2$
-		assertTrue("Expected to see '<li>**/.DS_Store</li>'", hoverText.contains(text)); //$NON-NLS-1$
+		assertTrue(hoverText.contains(text), "Expected to see '<li>**/.DS_Store</li>'"); //$NON-NLS-1$
 		text = "<li>**" + File.separator + ".bzrignore</li>"; //$NON-NLS-1$ //$NON-NLS-2$
-		assertTrue("Expected to see '<li>**/.bzrignore</li>'", hoverText.contains(text)); //$NON-NLS-1$
+		assertTrue(hoverText.contains(text), "Expected to see '<li>**/.bzrignore</li>'"); //$NON-NLS-1$
 		text = "<li>**" + File.separator + ".gitattributes</li>"; //$NON-NLS-1$ //$NON-NLS-2$
-		assertTrue("Expected to see '<li>**/.gitattributes</li>'", hoverText.contains(text)); //$NON-NLS-1$
+		assertTrue(hoverText.contains(text), "Expected to see '<li>**/.gitattributes</li>'"); //$NON-NLS-1$
 		text = "<li>**" + File.separator + ".hgtags</li>"; //$NON-NLS-1$ //$NON-NLS-2$
-		assertTrue("Expected to see '<li>**/.hgtags</li>'", hoverText.contains(text)); //$NON-NLS-1$
+		assertTrue(hoverText.contains(text), "Expected to see '<li>**/.hgtags</li>'"); //$NON-NLS-1$
 	}
 
 	@Test
@@ -133,14 +141,14 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "taskdef", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("taskdef", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 
 		offset = getOffsetWithinLine(editor, 9, 10);
 		editor.selectAndReveal(offset, 3);
 
 		editor.openReferenceElement();
 		selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "taskdef", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("taskdef", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	@Test
@@ -152,14 +160,14 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "macrodef", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("macrodef", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 
 		offset = getOffsetWithinLine(editor, 14, 9);
 		editor.selectAndReveal(offset, 1);
 
 		editor.openReferenceElement();
 		selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "macrodef", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("macrodef", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	/**
@@ -174,7 +182,7 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct:", "macrodef", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("macrodef", selection.getText(), "Selection is not correct:"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	/**
@@ -189,7 +197,7 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "macrodef", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("macrodef", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	@Test
@@ -201,7 +209,7 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "attribute", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("attribute", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	@Test
@@ -213,7 +221,7 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "path", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("path", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	@Test
@@ -225,7 +233,7 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "target", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("target", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	@Test
@@ -237,7 +245,7 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		editor.openReferenceElement();
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "extension-point", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("extension-point", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	/**
@@ -249,7 +257,7 @@ public class AntEditorTests extends AbstractAntUITest {
 	public void testAugmentOpenInEditor() throws Exception {
 		IFile file = getIFile("bug377075.ent"); //$NON-NLS-1$
 		IEditorPart part = EditorTestHelper.openInEditor(file, "org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
-		assertTrue("The opened editor must be the AntEditor", part instanceof AntEditor); //$NON-NLS-1$
+		assertTrue(part instanceof AntEditor, "The opened editor must be the AntEditor"); //$NON-NLS-1$
 	}
 
 	/**
@@ -261,12 +269,12 @@ public class AntEditorTests extends AbstractAntUITest {
 	public void testAugmentOpenAndSelect() throws Exception {
 		IFile file = getIFile("bug377075.ent"); //$NON-NLS-1$
 		IEditorPart part = EditorTestHelper.openInEditor(file, "org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
-		assertTrue("The opened editor must be the AntEditor", part instanceof AntEditor); //$NON-NLS-1$
+		assertTrue(part instanceof AntEditor, "The opened editor must be the AntEditor"); //$NON-NLS-1$
 		AntEditor editor = (AntEditor) part;
 		int offset = getOffsetWithinLine(editor, 5, 3);
 		editor.selectAndReveal(offset, 7); // should have 'augment' selected
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "augment", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("augment", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	/**
@@ -278,18 +286,18 @@ public class AntEditorTests extends AbstractAntUITest {
 	public void testAugmentOpenSelectHover() throws Exception {
 		IFile file = getIFile("bug377075.ent"); //$NON-NLS-1$
 		IEditorPart part = EditorTestHelper.openInEditor(file, "org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
-		assertTrue("The opened editor must be the AntEditor", part instanceof AntEditor); //$NON-NLS-1$
+		assertTrue(part instanceof AntEditor, "The opened editor must be the AntEditor"); //$NON-NLS-1$
 		AntEditor editor = (AntEditor) part;
 		int offset = getOffsetWithinLine(editor, 1, 11);
 		editor.selectAndReveal(offset, 5); // select the 'path1' id for the path element
 		ITextSelection selection = (ITextSelection) editor.getSelectionProvider().getSelection();
-		assertEquals("Selection is not correct", "path1", selection.getText()); //$NON-NLS-1$ //$NON-NLS-2$
+		assertEquals("path1", selection.getText(), "Selection is not correct"); //$NON-NLS-1$ //$NON-NLS-2$
 		XMLTextHover hover = new XMLTextHover(editor);
 		IRegion region = hover.getHoverRegion(editor.getViewer(), offset);
-		assertNotNull("The selected region for the augmented element cannot be null", region); //$NON-NLS-1$
+		assertNotNull(region, "The selected region for the augmented element cannot be null"); //$NON-NLS-1$
 		String text = hover.getHoverInfo(editor.getViewer(), region);
-		assertNotNull("The hover text for the path element must not be null", text); //$NON-NLS-1$
-		assertTrue("The hover text must contain the augmented element 'foo'", text.contains("foo")); //$NON-NLS-1$ //$NON-NLS-2$
+		assertNotNull(text, "The hover text for the path element must not be null"); //$NON-NLS-1$
+		assertTrue(text.contains("foo"), "The hover text must contain the augmented element 'foo'"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	/**
@@ -301,7 +309,7 @@ public class AntEditorTests extends AbstractAntUITest {
 	public void testAugmentMissingId() throws Exception {
 		IFile file = getIFile("bug396219.ent"); //$NON-NLS-1$
 		IEditorPart part = EditorTestHelper.openInEditor(file, "org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
-		assertTrue("The opened editor must be the AntEditor", part instanceof AntEditor); //$NON-NLS-1$
+		assertTrue(part instanceof AntEditor, "The opened editor must be the AntEditor"); //$NON-NLS-1$
 	}
 
 	@Test
@@ -316,8 +324,9 @@ public class AntEditorTests extends AbstractAntUITest {
 		assertNotNull(region);
 		IDocument doc = editor.getDocumentProvider().getDocument(editor.getEditorInput());
 		String text = doc.get(region.getOffset(), region.getLength());
-		assertTrue("Region incorrect. Expected length of 7 and text of \"compile\", length was " + region.getLength() + " and text was " //$NON-NLS-1$ //$NON-NLS-2$
-				+ text, region.getLength() == 7 && "compile".equals(text)); //$NON-NLS-1$
+		assertTrue(region.getLength() == 7 && "compile".equals(text), //$NON-NLS-1$
+				"Region incorrect. Expected length of 7 and text of \"compile\", length was " + region.getLength() //$NON-NLS-1$
+						+ " and text was " + text); //$NON-NLS-1$
 	}
 
 	@Test
@@ -327,7 +336,7 @@ public class AntEditorTests extends AbstractAntUITest {
 
 		IDocument doc = editor.getDocumentProvider().getDocument(editor.getEditorInput());
 
-		assertNotNull("Should have a document", doc); //$NON-NLS-1$
+		assertNotNull(doc, "Should have a document"); //$NON-NLS-1$
 	}
 
 	@Test
@@ -335,22 +344,22 @@ public class AntEditorTests extends AbstractAntUITest {
 		IFile file = getIFile("importViaClasspath.xml"); //$NON-NLS-1$
 		AntEditor editor = (AntEditor) EditorTestHelper.openInEditor(file, "org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
 		IDocument doc = editor.getDocumentProvider().getDocument(editor.getEditorInput());
-		assertNotNull("Should have a document", doc); //$NON-NLS-1$
+		assertNotNull(doc, "Should have a document"); //$NON-NLS-1$
 
 		file = getIFile("BaseBaseBuild.xml"); //$NON-NLS-1$
 		editor = (AntEditor) EditorTestHelper.openInEditor(file, "org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
 		doc = editor.getDocumentProvider().getDocument(editor.getEditorInput());
-		assertNotNull("Should have a document", doc); //$NON-NLS-1$
+		assertNotNull(doc, "Should have a document"); //$NON-NLS-1$
 
 		file = getIFile("BaseBuild.xml"); //$NON-NLS-1$
 		editor = (AntEditor) EditorTestHelper.openInEditor(file, "org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
 		doc = editor.getDocumentProvider().getDocument(editor.getEditorInput());
-		assertNotNull("Should have a document", doc); //$NON-NLS-1$
+		assertNotNull(doc, "Should have a document"); //$NON-NLS-1$
 
 		file = getIFile("Base.xml"); //$NON-NLS-1$
 		editor = (AntEditor) EditorTestHelper.openInEditor(file, "org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
 		doc = editor.getDocumentProvider().getDocument(editor.getEditorInput());
-		assertNotNull("Should have a document", doc); //$NON-NLS-1$
+		assertNotNull(doc, "Should have a document"); //$NON-NLS-1$
 	}
 
 	/**
@@ -361,7 +370,7 @@ public class AntEditorTests extends AbstractAntUITest {
 		IFile file = getIFile("importWithByteOrderMark.xml"); //$NON-NLS-1$
 		AntEditor editor = (AntEditor) EditorTestHelper.openInEditor(file,
 				"org.eclipse.ant.ui.internal.editor.AntEditor", true); //$NON-NLS-1$
-		assertNotNull("Should have imported target", editor.getAntModel().getTargetNode("build")); //$NON-NLS-1$ //$NON-NLS-2$
+		assertNotNull(editor.getAntModel().getTargetNode("build"), "Should have imported target"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	private int getOffsetWithinLine(AntEditor editor, int lineNumber, int offsetInLine) throws BadLocationException {

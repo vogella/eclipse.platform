@@ -14,7 +14,8 @@
  *******************************************************************************/
 package org.eclipse.debug.tests;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -22,22 +23,39 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.eclipse.core.internal.jobs.JobManager;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunchConfiguration;
+import org.eclipse.debug.core.ILaunchConfigurationType;
+import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
+import org.eclipse.debug.core.ILaunchManager;
+import org.eclipse.debug.internal.ui.DebugUIPlugin;
+import org.eclipse.debug.internal.ui.launchConfigurations.LaunchConfigurationManager;
+import org.eclipse.debug.tests.launching.LaunchConfigurationTests;
 import org.eclipse.swt.widgets.Display;
-import org.junit.Assert;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 
 
-public class TestUtil {
+public final class TestUtil {
+
+	/**
+	 * The default test timeout in milliseconds
+	 */
+	public static long DEFAULT_TIMEOUT = 30_000;
+
+	private TestUtil() {
+	}
 
 	/**
 	 * Call this in the tearDown method of every test to clean up state that can
@@ -45,7 +63,7 @@ public class TestUtil {
 	 */
 	public static void cleanUp(String owner) {
 		// Ensure that the Thread.interrupted() flag didn't leak.
-		Assert.assertFalse("The main thread should not be interrupted at the end of a test", Thread.interrupted());
+		assertFalse(Thread.interrupted(), "The main thread should not be interrupted at the end of a test");
 
 		// Wait for any outstanding jobs to finish. Protect against deadlock by
 		// terminating the wait after a timeout.
@@ -58,7 +76,7 @@ public class TestUtil {
 		}
 
 		// Ensure that the Thread.interrupted() flag didn't leak.
-		Assert.assertFalse("The main thread should not be interrupted at the end of a test", Thread.interrupted());
+		assertFalse(Thread.interrupted(), "The main thread should not be interrupted at the end of a test");
 	}
 
 	public static void log(int severity, String owner, String message, Throwable... optionalError) {
@@ -107,24 +125,22 @@ public class TestUtil {
 	/**
 	 * Waits while given condition is {@code true} for a given amount of
 	 * milliseconds. If the actual wait time exceeds given timeout and condition
-	 * will be still {@code true}, throws
-	 * {@link junit.framework.AssertionFailedError} with given message.
+	 * will be still {@code true}, throws {@link junit.framework.AssertionError}
+	 * with given message.
 	 * <p>
 	 * Will process UI events while waiting in UI thread, if called from
 	 * background thread, just waits.
 	 *
-	 * @param <T> type of the context
 	 * @param condition function which will be evaluated while waiting
-	 * @param context test context
 	 * @param timeout max wait time in milliseconds to wait on given condition
 	 * @param errorMessage message which will be used to construct the failure
 	 *            exception in case the condition will still return {@code true}
 	 *            after given timeout
 	 */
-	public static <T> void waitWhile(Predicate<T> condition, T context, long timeout, Function<T, String> errorMessage) throws Exception {
+	public static void waitWhile(BooleanSupplier condition, long timeout, Supplier<String> errorMessage) throws Exception {
 		long start = System.currentTimeMillis();
 		Display display = Display.getCurrent();
-		while (System.currentTimeMillis() - start < timeout && condition.test(context)) {
+		while (System.currentTimeMillis() - start < timeout && condition.getAsBoolean()) {
 			if (display != null && !display.isDisposed()) {
 				if (!display.readAndDispatch()) {
 					Thread.sleep(0);
@@ -133,10 +149,28 @@ public class TestUtil {
 				Thread.sleep(5);
 			}
 		}
-		Boolean stillTrue = condition.test(context);
+		Boolean stillTrue = condition.getAsBoolean();
 		if (stillTrue) {
-			fail(errorMessage.apply(context));
+			fail(errorMessage.get());
 		}
+	}
+
+	/**
+	 * Waits while given condition is {@code true} for the time defined as
+	 * {@code #TEST_TIMEOUT}. If the actual wait time exceeds that timeout and
+	 * condition will be still {@code true}, throws {@link AssertionError} with
+	 * given message.
+	 * <p>
+	 * Will process UI events while waiting in UI thread, if called from
+	 * background thread, just waits.
+	 *
+	 * @param condition function which will be evaluated while waiting
+	 * @param errorMessage message which will be used to construct the failure
+	 *            exception in case the condition will still return {@code true}
+	 *            after given timeout
+	 */
+	public static void waitWhile(BooleanSupplier condition, Supplier<String> errorMessage) throws Exception {
+		waitWhile(condition, DEFAULT_TIMEOUT, errorMessage);
 	}
 
 	/**
@@ -305,6 +339,44 @@ public class TestUtil {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Returns the launch manager.
+	 *
+	 * @return launch manager
+	 */
+	public static ILaunchManager getLaunchManager() {
+		return DebugPlugin.getDefault().getLaunchManager();
+	}
+
+	/**
+	 * Returns the singleton instance of the <code>LaunchConfigurationManager</code>
+	 *
+	 * @return the singleton instance of the <code>LaunchConfigurationManager</code>
+	 */
+	public static LaunchConfigurationManager getLaunchConfigurationManager() {
+		return DebugUIPlugin.getDefault().getLaunchConfigurationManager();
+	}
+
+	/**
+	 * Returns a launch configuration with the given name, creating one if required.
+	 *
+	 * @param configurationName configuration name
+	 * @return launch configuration
+	 */
+	public static ILaunchConfiguration getLaunchConfiguration(String configurationName) throws CoreException {
+		ILaunchManager manager = getLaunchManager();
+		ILaunchConfiguration[] configurations = manager.getLaunchConfigurations();
+		for (ILaunchConfiguration config : configurations) {
+			if (config.getName().equals(configurationName)) {
+				return config;
+			}
+		}
+		 ILaunchConfigurationType type = getLaunchManager().getLaunchConfigurationType(LaunchConfigurationTests.ID_TEST_LAUNCH_TYPE);
+		 ILaunchConfigurationWorkingCopy wc = type.newInstance(null, configurationName);
+		 ILaunchConfiguration saved = wc.doSave();
+		 return saved;
 	}
 
 }

@@ -14,6 +14,8 @@
  *******************************************************************************/
 package org.eclipse.debug.tests.viewer.model;
 
+import static org.eclipse.debug.tests.TestUtil.waitWhile;
+
 import org.eclipse.debug.internal.ui.viewers.model.IInternalTreeModelViewer;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.IModelDelta;
 import org.eclipse.debug.internal.ui.viewers.model.provisional.ModelDelta;
@@ -24,8 +26,9 @@ import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerFilter;
 import org.eclipse.test.performance.Performance;
 import org.eclipse.test.performance.PerformanceMeter;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 /**
  * Tests to measure the performance of the viewer updates.
@@ -34,8 +37,10 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 	protected VisibleVirtualItemValidator fVirtualItemValidator;
 
+	private TestInfo testInfo;
+
 	public String getDefaultScenarioId() {
-		return this.getClass().getName() + '#' + name.getMethodName() + "()"; //$NON-NLS-1$
+		return this.getClass().getName() + '#' + testInfo.getDisplayName() + "()"; //$NON-NLS-1$
 	}
 
 	@Override
@@ -43,10 +48,9 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 		return new TestModelUpdatesListener(viewer, false, false);
 	}
 
-	@Override
-	@Before
-	public void setUp() throws Exception {
-		super.setUp();
+	@BeforeEach
+	public void setUp(TestInfo testInfo) throws Exception {
+		this.testInfo = testInfo;
 		fVirtualItemValidator = new VisibleVirtualItemValidator(0, Integer.MAX_VALUE);
 	}
 
@@ -70,7 +74,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 		// Set the input into the view and update the view.
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 
 		Performance perf = Performance.getDefault();
@@ -85,7 +89,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 				meter.start();
 				model.postDelta(new ModelDelta(element, IModelDelta.CONTENT));
-				waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+				waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 				meter.stop();
 				System.gc();
 			}
@@ -110,7 +114,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 		// Set the input into the view and update the view.
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE), createListenerErrorMessage());
 
 		fVirtualItemValidator.setVisibleRange(0, 50);
 
@@ -127,9 +131,9 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 				meter.start();
 				model.postDelta(new ModelDelta(element, IModelDelta.CONTENT));
-				waitWhile(t -> !fListener.isFinished(MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+				waitWhile(() -> !fListener.isFinished(MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 				model.postDelta(new ModelDelta(element, IModelDelta.CONTENT));
-				waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+				waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 				meter.stop();
 				System.gc();
 			}
@@ -154,7 +158,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 		// Set the input into the view and update the view.
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 
 		Performance perf = Performance.getDefault();
@@ -169,7 +173,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 				meter.start();
 				model.postDelta(new ModelDelta(element, IModelDelta.CONTENT));
-				waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+				waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 				meter.stop();
 				System.gc();
 			}
@@ -195,7 +199,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 		// Set the input into the view and update the view.
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 
 		Performance perf = Performance.getDefault();
@@ -210,7 +214,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 				meter.start();
 				model.postDelta(new ModelDelta(element, IModelDelta.CONTENT));
-				waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+				waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 				meter.stop();
 				System.gc();
 			}
@@ -235,7 +239,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 		// Set the input into the view and update the view.
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 
 		// Set a selection in view
@@ -256,7 +260,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 				meter.start();
 				fViewer.setInput(null);
-				waitWhile(t -> !fListener.isFinished(STATE_SAVE_COMPLETE), createListenerErrorMessage());
+				waitWhile(() -> !fListener.isFinished(STATE_SAVE_COMPLETE), createListenerErrorMessage());
 
 				// Set the viewer input back to the model.  When view updates are complete
 				// the viewer
@@ -264,7 +268,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 				fListener.reset(TreePath.EMPTY, model.getRootElement(), 1, false, false);
 				// TODO: add state updates somehow?
 				fViewer.setInput(model.getRootElement());
-				waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE | STATE_RESTORE_COMPLETE), createListenerErrorMessage());
+				waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE | STATE_RESTORE_COMPLETE), createListenerErrorMessage());
 				meter.stop();
 				System.gc();
 			}
@@ -307,7 +311,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 		// Set the input into the view and update the view.
 		fViewer.setInput(model.getRootElement());
-		waitWhile(t -> !fListener.isFinished(), createListenerErrorMessage());
+		waitWhile(() -> !fListener.isFinished(), createListenerErrorMessage());
 		model.validateData(fViewer, TreePath.EMPTY);
 
 		Performance perf = Performance.getDefault();
@@ -322,7 +326,7 @@ abstract public class PerformanceTests extends AbstractViewerModelTest implement
 
 				meter.start();
 				model.postDelta(new ModelDelta(element, IModelDelta.CONTENT));
-				waitWhile(t -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
+				waitWhile(() -> !fListener.isFinished(ALL_UPDATES_COMPLETE | MODEL_CHANGED_COMPLETE), createListenerErrorMessage());
 				meter.stop();
 				System.gc();
 			}

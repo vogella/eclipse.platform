@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2006, 2012 IBM Corporation and others.
+ *  Copyright (c) 2006, 2025 IBM Corporation and others.
  *
  *  This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License 2.0
@@ -13,12 +13,12 @@
  *******************************************************************************/
 package org.eclipse.core.tests.filesystem;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.eclipse.core.filesystem.EFS;
 import org.eclipse.core.filesystem.IFileSystem;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests public API methods of the class EFS.
@@ -28,14 +28,14 @@ public class EFSTest {
 	@Test
 	public void testGetLocalFileSystem() {
 		IFileSystem system = EFS.getLocalFileSystem();
-		assertNotNull("1.0", system);
-		assertEquals("1.1", "file", system.getScheme());
+		assertNotNull(system);
+		assertEquals("file", system.getScheme());
 	}
 
 	@Test
 	public void testGetNullFileSystem() {
 		IFileSystem system = EFS.getNullFileSystem();
-		assertNotNull("1.0", system);
-		assertEquals("1.1", "null", system.getScheme());
+		assertNotNull(system);
+		assertEquals("null", system.getScheme());
 	}
 }

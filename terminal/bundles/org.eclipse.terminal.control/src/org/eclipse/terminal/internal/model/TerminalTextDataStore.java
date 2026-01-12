@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2007, 2018 Wind River Systems, Inc. and others.
+ * Copyright (c) 2007, 2026 Wind River Systems, Inc. and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
  * which accompanies this distribution, and is available at
@@ -41,15 +41,6 @@ public class TerminalTextDataStore implements ITerminalTextData {
 		fWidth = 0;
 	}
 
-	/**
-	 * This is used in asserts to throw an {@link RuntimeException}.
-	 * This is useful for tests.
-	 * @return never -- throws an exception
-	 */
-	private boolean throwRuntimeException() {
-		throw new RuntimeException();
-	}
-
 	@Override
 	public int getWidth() {
 		return fWidth;
@@ -62,8 +53,12 @@ public class TerminalTextDataStore implements ITerminalTextData {
 
 	@Override
 	public void setDimensions(int height, int width) {
-		assert height >= 0 || throwRuntimeException();
-		assert width >= 0 || throwRuntimeException();
+		if (height < 0) {
+			throw new IllegalArgumentException("Parameter 'height' can't be negative value:" + height); //$NON-NLS-1$
+		}
+		if (width < 0) {
+			throw new IllegalArgumentException("Parameter 'width' can't be negative value:" + width); //$NON-NLS-1$
+		}
 		// just extend the region
 		if (height > fChars.length) {
 			int h = 4 * height / 3;
@@ -145,7 +140,14 @@ public class TerminalTextDataStore implements ITerminalTextData {
 
 	@Override
 	public char getChar(int line, int column) {
-		assert column < fWidth || throwRuntimeException();
+		if (column < 0 || column >= fWidth) {
+			throw new IllegalArgumentException(
+					"Parameter 'column' must be >= 0 and less than 'width' (current value '" + fWidth + "')"); //$NON-NLS-1$ //$NON-NLS-2$
+		}
+		if (line < 0 || line >= fHeight) {
+			throw new IllegalArgumentException(
+					"Parameter 'line' must be >= 0 and less than 'height' (current value '" + fHeight + "')"); //$NON-NLS-1$ //$NON-NLS-2$
+		}
 		if (fChars[line] == null || column >= fChars[line].length) {
 			return 0;
 		}
@@ -154,26 +156,34 @@ public class TerminalTextDataStore implements ITerminalTextData {
 
 	@Override
 	public TerminalStyle getStyle(int line, int column) {
-		assert column < fWidth || throwRuntimeException();
+		if (column >= fWidth) {
+			throw new IllegalArgumentException(
+					"Parameter 'column' must be >= 0 and less than 'width' (current value '" + fWidth + "')"); //$NON-NLS-1$ //$NON-NLS-2$
+		}
 		if (fStyle[line] == null || column >= fStyle[line].length) {
 			return null;
 		}
 		return fStyle[line][column];
 	}
 
-	void ensureLineLength(int iLine, int length) {
+	void ensureLineLength(int line, int length) {
+		if (line < 0 || line >= fHeight) {
+			throw new IllegalArgumentException(
+					"Parameter 'line' must be >= 0 and less than 'height' (current value '" + fHeight + "')"); //$NON-NLS-1$ //$NON-NLS-2$
+		}
 		if (length > fWidth) {
-			throw new RuntimeException();
+			throw new IllegalArgumentException(
+					"Parameter 'length'(value='" + length + "') exceeds 'width'(value='" + fWidth + "')"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 		}
-		if (fChars[iLine] == null) {
-			fChars[iLine] = new char[length];
-		} else if (fChars[iLine].length < length) {
-			fChars[iLine] = (char[]) resizeArray(fChars[iLine], length);
+		if (fChars[line] == null) {
+			fChars[line] = new char[length];
+		} else if (fChars[line].length < length) {
+			fChars[line] = (char[]) resizeArray(fChars[line], length);
 		}
-		if (fStyle[iLine] == null) {
-			fStyle[iLine] = new TerminalStyle[length];
-		} else if (fStyle[iLine].length < length) {
-			fStyle[iLine] = (TerminalStyle[]) resizeArray(fStyle[iLine], length);
+		if (fStyle[line] == null) {
+			fStyle[line] = new TerminalStyle[length];
+		} else if (fStyle[line].length < length) {
+			fStyle[line] = (TerminalStyle[]) resizeArray(fStyle[line], length);
 		}
 	}
 
@@ -191,6 +201,10 @@ public class TerminalTextDataStore implements ITerminalTextData {
 
 	@Override
 	public void setChars(int line, int column, char[] chars, int start, int len, TerminalStyle style) {
+		if (column < 0 || column >= fWidth) {
+			throw new IllegalArgumentException(
+					"Parameter 'column' must be >= 0 and less than 'width' (current value '" + fWidth + "')"); //$NON-NLS-1$ //$NON-NLS-2$
+		}
 		ensureLineLength(line, column + len);
 		for (int i = 0; i < len; i++) {
 			fChars[line][column + i] = chars[i + start];
@@ -200,7 +214,10 @@ public class TerminalTextDataStore implements ITerminalTextData {
 
 	@Override
 	public void scroll(int startLine, int size, int shift) {
-		assert startLine + size <= getHeight() || throwRuntimeException();
+		if (startLine + size > getHeight()) {
+			throw new IllegalArgumentException("Value of 'startLine'+'size' parameters must be valid line (range [0-" //$NON-NLS-1$
+					+ getHeight() + "). Parameter values: 'startLine'=" + startLine + ", 'size'=" + size); //$NON-NLS-1$ //$NON-NLS-2$
+		}
 		if (shift < 0) {
 			// move the region up
 			// shift is negative!!
@@ -283,6 +300,20 @@ public class TerminalTextDataStore implements ITerminalTextData {
 
 	@Override
 	public void copyRange(ITerminalTextData source, int sourceStartLine, int destStartLine, int length) {
+		if (destStartLine < 0 || destStartLine + length > fHeight) {
+			throw new IllegalArgumentException(
+					"Value of 'destStartLine'+'length' parameters must be valid line (range [0-" //$NON-NLS-1$
+							+ fHeight + "). Parameter values: 'destStartLine'=" + destStartLine //$NON-NLS-1$
+							+ ", 'size'=" //$NON-NLS-1$
+							+ length);
+		}
+		if (sourceStartLine < 0 || sourceStartLine + length > source.getHeight()) {
+			throw new IllegalArgumentException(
+					"Value of 'sourceStartLine'+'length' parameters must be valid line (range [0-" //$NON-NLS-1$
+							+ source.getHeight() + "). Parameter values: 'sourceStartLine'=" + sourceStartLine //$NON-NLS-1$
+							+ ", 'size'=" //$NON-NLS-1$
+							+ length);
+		}
 		for (int i = 0; i < length; i++) {
 			copyLine(source, i + sourceStartLine, i + destStartLine);
 		}

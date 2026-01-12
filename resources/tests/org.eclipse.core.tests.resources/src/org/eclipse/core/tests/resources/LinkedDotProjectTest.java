@@ -14,13 +14,13 @@ import static org.eclipse.core.resources.ResourcesPlugin.getWorkspace;
 import static org.eclipse.core.tests.resources.ResourceTestPluginConstants.NATURE_EARTH;
 import static org.eclipse.core.tests.resources.ResourceTestPluginConstants.NATURE_MISSING;
 import static org.eclipse.core.tests.resources.ResourceTestPluginConstants.NATURE_SIMPLE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -35,13 +35,12 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Status;
-import org.junit.Rule;
-import org.junit.Test;
+import org.eclipse.core.tests.resources.util.WorkspaceResetExtension;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(WorkspaceResetExtension.class)
 public class LinkedDotProjectTest {
-
-	@Rule
-	public WorkspaceTestRule workspaceRule = new WorkspaceTestRule();
 
 	private void linkDotProject(IProject project) throws CoreException {
 		IFile dotProject = project.getFile(IProjectDescription.DESCRIPTION_FILE_NAME);
@@ -82,16 +81,16 @@ public class LinkedDotProjectTest {
 		linkDotProject(project);
 		assertFalse(project.getLocation().isPrefixOf(project.getFile(IProjectDescription.DESCRIPTION_FILE_NAME).getLocation()));
 		//getNature on open project with no natures
-		assertNull("3.1", project.getNature(NATURE_MISSING));
-		assertNull("3.2", project.getNature(NATURE_EARTH));
+		assertNull(project.getNature(NATURE_MISSING));
+		assertNull(project.getNature(NATURE_EARTH));
 		IProjectDescription desc = project.getDescription();
 		desc.setNatureIds(new String[] { NATURE_EARTH });
 		project.setDescription(desc, null);
 		//getNature on open project with natures
 		IProjectNature nature = project.getNature(NATURE_EARTH);
-		assertNotNull("5.0", nature);
-		assertNull("5.1", project.getNature(NATURE_MISSING));
-		assertEquals("6.0", project, nature.getProject());
+		assertNotNull(nature);
+		assertNull(project.getNature(NATURE_MISSING));
+		assertEquals(project, nature.getProject());
 		assertFalse(project.getLocation().isPrefixOf(project.getFile(IProjectDescription.DESCRIPTION_FILE_NAME).getLocation()));
 
 		//ensure nature is preserved on copy
@@ -101,9 +100,9 @@ public class LinkedDotProjectTest {
 		assertNotEquals(project.getFile(IProjectDescription.DESCRIPTION_FILE_NAME).getLocationURI(), project2.getFile(IProjectDescription.DESCRIPTION_FILE_NAME).getLocationURI());
 		assertTrue(project2.getLocation().isPrefixOf(project2.getFile(IProjectDescription.DESCRIPTION_FILE_NAME).getLocation()));
 		nature2 = project2.getNature(NATURE_EARTH);
-		assertNotNull("7.0", nature2);
-		assertEquals("7.1", project2, nature2.getProject());
-		assertEquals("7.2", project, nature.getProject());
+		assertNotNull(nature2);
+		assertEquals(project2, nature2.getProject());
+		assertEquals(project, nature.getProject());
 	}
 
 }

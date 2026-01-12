@@ -17,42 +17,47 @@
 
 package org.eclipse.ant.tests.ui.editor;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
 import org.eclipse.ant.internal.ui.model.AntElementNode;
 import org.eclipse.ant.internal.ui.model.AntModel;
 import org.eclipse.ant.internal.ui.model.IAntElement;
-import org.eclipse.ant.tests.ui.testplugin.AbstractAntUITest;
+import org.eclipse.ant.tests.ui.testplugin.AntModelForDocument;
+import org.eclipse.ant.tests.ui.testplugin.AntUITest;
 import org.eclipse.jface.text.BadLocationException;
-import org.junit.Test;
+import org.eclipse.jface.text.IDocument;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests the correct creation of the outline for an xml file.
  */
-public class AntEditorContentOutlineTests extends AbstractAntUITest {
+@AntUITest
+public class AntEditorContentOutlineTests {
 
 	/**
 	 * Tests the creation of the AntElementNode, that includes parsing a file and determining the correct location of the tags.
 	 */
 	@Test
 	public void testCreationOfOutlineTree() throws BadLocationException {
-		AntModel model = getAntModel("buildtest1.xml"); //$NON-NLS-1$
+		AntModelForDocument model = new AntModelForDocument("buildtest1.xml"); //$NON-NLS-1$
 
-		AntElementNode rootProject = model.getProjectNode();
+		AntElementNode rootProject = model.getAntModel().getProjectNode();
 
 		assertNotNull(rootProject);
 
 		// Get the content as string
-		String wholeDocumentString = getCurrentDocument().get();
+		String wholeDocumentString = model.getDocument().get();
 
+		IDocument document = model.getDocument();
 		// <project>
-		assertEquals(2, getStartingRow(rootProject));
-		assertEquals(2, getStartingColumn(rootProject));
+		assertEquals(2, getStartingRow(document, rootProject));
+		assertEquals(2, getStartingColumn(document, rootProject));
 		int offset = wholeDocumentString.indexOf("project"); //$NON-NLS-1$
 		assertEquals(offset, rootProject.getOffset());
 
@@ -60,10 +65,10 @@ public class AntEditorContentOutlineTests extends AbstractAntUITest {
 
 		// <property name="propD">
 		IAntElement element = children.get(0);
-		assertEquals(3, getStartingRow(element));
-		assertEquals(3, getStartingColumn(element)); // with tab in file
-		assertEquals(3, getEndingRow(element));
-		assertEquals(39, getEndingColumn(element)); // with tab in file
+		assertEquals(3, getStartingRow(document, element));
+		assertEquals(3, getStartingColumn(document, element)); // with tab in file
+		assertEquals(3, getEndingRow(document, element));
+		assertEquals(39, getEndingColumn(document, element)); // with tab in file
 
 		offset = wholeDocumentString.indexOf("property"); //$NON-NLS-1$
 		assertEquals(offset, element.getOffset());
@@ -72,56 +77,56 @@ public class AntEditorContentOutlineTests extends AbstractAntUITest {
 
 		// <property file="buildtest1.properties">
 		element = children.get(1);
-		assertEquals(4, getStartingRow(element));
-		assertEquals(6, getStartingColumn(element)); // no tab
-		assertEquals(4, getEndingRow(element));
-		assertEquals(45, getEndingColumn(element));
+		assertEquals(4, getStartingRow(document, element));
+		assertEquals(6, getStartingColumn(document, element)); // no tab
+		assertEquals(4, getEndingRow(document, element));
+		assertEquals(45, getEndingColumn(document, element));
 
 		// <property name="propV">
 		element = children.get(2);
-		assertEquals(5, getStartingRow(element));
-		assertEquals(6, getStartingColumn(element));
-		assertEquals(5, getEndingRow(element));
-		assertEquals(42, getEndingColumn(element));
+		assertEquals(5, getStartingRow(document, element));
+		assertEquals(6, getStartingColumn(document, element));
+		assertEquals(5, getEndingRow(document, element));
+		assertEquals(42, getEndingColumn(document, element));
 
 		// <target name="main">
 		element = children.get(3);
-		assertEquals(6, getStartingRow(element));
-		assertEquals(6, getStartingColumn(element));
-		assertEquals(9, getEndingRow(element));
-		assertEquals(13, getEndingColumn(element));
+		assertEquals(6, getStartingRow(document, element));
+		assertEquals(6, getStartingColumn(document, element));
+		assertEquals(9, getEndingRow(document, element));
+		assertEquals(13, getEndingColumn(document, element));
 
 		// <property name="property_in_target">
 		element = element.getChildNodes().get(0);
-		assertEquals(7, getStartingRow(element));
-		assertEquals(10, getStartingColumn(element));
-		assertEquals(7, getEndingRow(element));
-		assertEquals(57, getEndingColumn(element));
+		assertEquals(7, getStartingRow(document, element));
+		assertEquals(10, getStartingColumn(document, element));
+		assertEquals(7, getEndingRow(document, element));
+		assertEquals(57, getEndingColumn(document, element));
 		offset = wholeDocumentString.indexOf("property name=\"property_in_target\""); //$NON-NLS-1$
 		assertEquals(offset, element.getOffset());
 
-		assertEquals(21, getEndingRow(rootProject));
-		assertEquals(10, getEndingColumn(rootProject));
+		assertEquals(21, getEndingRow(document, rootProject));
+		assertEquals(10, getEndingColumn(document, rootProject));
 	}
 
-	private int getColumn(int offset, int line) throws BadLocationException {
-		return offset - getCurrentDocument().getLineOffset(line - 1) + 1;
+	private int getColumn(IDocument document, int offset, int line) throws BadLocationException {
+		return offset - document.getLineOffset(line - 1) + 1;
 	}
 
-	private int getStartingRow(IAntElement element) throws BadLocationException {
-		return getCurrentDocument().getLineOfOffset(element.getOffset()) + 1;
+	private int getStartingRow(IDocument document, IAntElement element) throws BadLocationException {
+		return document.getLineOfOffset(element.getOffset()) + 1;
 	}
 
-	private int getEndingRow(IAntElement element) throws BadLocationException {
-		return getCurrentDocument().getLineOfOffset(element.getOffset() + element.getLength() - 1) + 1;
+	private int getEndingRow(IDocument document, IAntElement element) throws BadLocationException {
+		return document.getLineOfOffset(element.getOffset() + element.getLength() - 1) + 1;
 	}
 
-	private int getStartingColumn(IAntElement element) throws BadLocationException {
-		return getColumn(element.getOffset(), getStartingRow(element));
+	private int getStartingColumn(IDocument document, IAntElement element) throws BadLocationException {
+		return getColumn(document, element.getOffset(), getStartingRow(document, element));
 	}
 
-	private int getEndingColumn(IAntElement element) throws BadLocationException {
-		return getColumn(element.getOffset() + element.getLength() - 1, getEndingRow(element));
+	private int getEndingColumn(IDocument document, IAntElement element) throws BadLocationException {
+		return getColumn(document, element.getOffset() + element.getLength() - 1, getEndingRow(document, element));
 	}
 
 	/**
@@ -129,20 +134,21 @@ public class AntEditorContentOutlineTests extends AbstractAntUITest {
 	 */
 	@Test
 	public void testParsingOfNonValidFile() throws BadLocationException {
-		AntModel model = getAntModel("buildtest2.xml"); //$NON-NLS-1$
+		AntModelForDocument model = new AntModelForDocument("buildtest2.xml"); //$NON-NLS-1$
 
-		IAntElement root = model.getProjectNode();
+		IAntElement root = model.getAntModel().getProjectNode();
 		assertNotNull(root);
 
 		List<IAntElement> children = root.getChildNodes();
 
+		IDocument document = model.getDocument();
 		// <target name="main">
 		IAntElement element = children.get(2);
-		assertEquals(5, getStartingRow(element));
-		assertEquals(3, getStartingColumn(element)); // with tab in file
-		assertEquals(5, getEndingRow(element));
+		assertEquals(5, getStartingRow(document, element));
+		assertEquals(3, getStartingColumn(document, element)); // with tab in file
+		assertEquals(5, getEndingRow(document, element));
 		// main has no ending column as the element is not closed
-		int offset = getCurrentDocument().get().indexOf("target name=\"main\""); //$NON-NLS-1$
+		int offset = model.getDocument().get().indexOf("target name=\"main\""); //$NON-NLS-1$
 		assertEquals(offset, element.getOffset());
 	}
 
@@ -151,7 +157,7 @@ public class AntEditorContentOutlineTests extends AbstractAntUITest {
 	 */
 	@Test
 	public void testWithProjectOnlyBuildFile() {
-		AntModel model = getAntModel("projectOnly.xml"); //$NON-NLS-1$
+		AntModel model = new AntModelForDocument("projectOnly.xml").getAntModel(); //$NON-NLS-1$
 		AntElementNode rootProject = model.getProjectNode();
 		assertNotNull(rootProject);
 	}
@@ -161,9 +167,9 @@ public class AntEditorContentOutlineTests extends AbstractAntUITest {
 	 */
 	@Test
 	public void testWithEmptyBuildFile() {
-		AntModel model = getAntModel("empty.xml"); //$NON-NLS-1$
+		AntModel model = new AntModelForDocument("empty.xml").getAntModel(); //$NON-NLS-1$
 		AntElementNode rootProject = model.getProjectNode();
-		assertTrue(rootProject == null);
+		assertNull(rootProject);
 	}
 
 	/**
@@ -171,16 +177,17 @@ public class AntEditorContentOutlineTests extends AbstractAntUITest {
 	 */
 	@Test
 	public void testAdvancedTaskLocation() throws BadLocationException {
-		AntModel model = getAntModel("outline_select_test_build.xml"); //$NON-NLS-1$
+		AntModelForDocument model = new AntModelForDocument("outline_select_test_build.xml"); //$NON-NLS-1$
 
-		AntElementNode rootProject = model.getProjectNode();
+		AntElementNode rootProject = model.getAntModel().getProjectNode();
 		// Get the content as string
-		String wholeDocumentString = getCurrentDocument().get();
+		String wholeDocumentString = model.getDocument().get();
 
+		IDocument document = model.getDocument();
 		// <project>
 		assertNotNull(rootProject);
-		assertEquals(2, getStartingRow(rootProject));
-		assertEquals(2, getStartingColumn(rootProject));
+		assertEquals(2, getStartingRow(document, rootProject));
+		assertEquals(2, getStartingColumn(document, rootProject));
 		int offset = wholeDocumentString.indexOf("project"); //$NON-NLS-1$
 
 		assertEquals(offset, rootProject.getOffset());
@@ -189,8 +196,8 @@ public class AntEditorContentOutlineTests extends AbstractAntUITest {
 		IAntElement element = rootProject.getChildNodes().get(1);
 		assertNotNull(element);
 		assertEquals("properties", element.getLabel()); //$NON-NLS-1$
-		assertEquals(16, getStartingRow(element));
-		assertEquals(3, getStartingColumn(element));
+		assertEquals(16, getStartingRow(document, element));
+		assertEquals(3, getStartingColumn(document, element));
 		offset = wholeDocumentString.indexOf("target name=\"properties\""); //$NON-NLS-1$
 
 		assertEquals(offset, element.getOffset());
@@ -201,10 +208,12 @@ public class AntEditorContentOutlineTests extends AbstractAntUITest {
 	 */
 	@Test
 	public void testInternalTargets() {
-		AntModel model = getAntModel("internalTargets.xml"); //$NON-NLS-1$
-		assertTrue("Target without description should be internal", model.getTargetNode("internal1").isInternal()); //$NON-NLS-1$ //$NON-NLS-2$
-		assertTrue("Target with name starting with '-' should be internal", model.getTargetNode("-internal2").isInternal()); //$NON-NLS-1$ //$NON-NLS-2$
-		assertFalse("Target with description attribute should not be internal", model.getTargetNode("non-internal").isInternal()); //$NON-NLS-1$ //$NON-NLS-2$
-		assertFalse("Default target should not be internal", model.getTargetNode("-default").isInternal()); //$NON-NLS-1$ //$NON-NLS-2$
+		AntModel model = new AntModelForDocument("internalTargets.xml").getAntModel(); //$NON-NLS-1$
+		assertTrue(model.getTargetNode("internal1").isInternal(), "Target without description should be internal"); //$NON-NLS-1$ //$NON-NLS-2$
+		assertTrue(model.getTargetNode("-internal2").isInternal(), //$NON-NLS-1$
+				"Target with name starting with '-' should be internal\""); //$NON-NLS-1$
+		assertFalse(model.getTargetNode("non-internal").isInternal(), //$NON-NLS-1$
+				"Target with description attribute should not be internal"); //$NON-NLS-1$
+		assertFalse(model.getTargetNode("-default").isInternal(), "Default target should not be internal"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 }
