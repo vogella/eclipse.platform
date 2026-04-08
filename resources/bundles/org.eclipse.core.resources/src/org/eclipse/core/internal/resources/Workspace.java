@@ -2371,13 +2371,18 @@ public class Workspace extends PlatformObject implements IWorkspace, ICoreConsta
 		notificationManager.startup(null);
 		openFlag = true;
 		if (crashed || refreshRequested()) {
-			try {
-				refreshManager.refresh(getRoot());
-			} catch (RuntimeException e) {
-				//don't fail entire open if refresh failed, just report as warning
-				return new ResourceStatus(IResourceStatus.INTERNAL_ERROR, IPath.ROOT,
-						Messages.resources_errorMultiRefresh, e);
-			}
+			// Schedule refresh as a background job to avoid blocking workspace startup
+			Job refreshJob = Job.create(Messages.resources_errorMultiRefresh, monitor2 -> {
+				try {
+					refreshManager.refresh(getRoot());
+				} catch (RuntimeException e) {
+					ResourcesPlugin.getPlugin().getLog()
+							.log(new ResourceStatus(IResourceStatus.INTERNAL_ERROR, IPath.ROOT,
+									Messages.resources_errorMultiRefresh, e));
+				}
+			});
+			refreshJob.setSystem(true);
+			refreshJob.schedule();
 		}
 		//finally register a string pool participant
 		stringPoolJob = new StringPoolJob();
