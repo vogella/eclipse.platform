@@ -64,9 +64,9 @@ import org.eclipse.osgi.util.NLS;
  * The data structures maintained by the alias manager can be seen as a cache,
  * that is, they store no information that cannot be recomputed from other
  * available information.  On shutdown, the alias manager discards all state; on
- * startup, the alias manager eagerly rebuilds its state.  The reasoning is
- * that it's better to incur this cost on startup than on the first attempt to
- * modify a resource.  After startup, the state is updated incrementally on the
+ * startup, the alias manager defers building its state until first use to
+ * improve startup performance.  After first use, the state is updated
+ * incrementally on the
  * following occasions:
  *  -  when projects are deleted, opened, closed, or moved
  *  - when linked resources are created, deleted, or moved.
@@ -374,6 +374,12 @@ public class AliasManager implements IManager, ILifecycleListener, IResourceChan
 	private int nonDefaultResourceCount = 0;
 
 	/**
+	 * Whether the locations map has been initialized. The map is built lazily
+	 * on first use to avoid slowing down workspace startup.
+	 */
+	private volatile boolean initialized = false;
+
+	/**
 	 * The suffix object is also used only during the computeAliases method.
 	 * In this case it is a field because it is referenced from an inner class
 	 * and we want to avoid creating a pointer array.  It is public to eliminate
@@ -501,6 +507,7 @@ public class AliasManager implements IManager, ILifecycleListener, IResourceChan
 	 * Returns all resources pointing to the given location, or an empty array if there are none.
 	 */
 	public IResource[] findResources(IFileStore location) {
+		ensureInitialized();
 		final ArrayList<IResource> resources = new ArrayList<>();
 		locationsMap.matchingResourcesDo(location, resource -> resources.add(resource));
 		return resources.toArray(new IResource[0]);
@@ -577,6 +584,7 @@ public class AliasManager implements IManager, ILifecycleListener, IResourceChan
 	 * otherwise.
 	 */
 	private boolean hasNoAliases(final IResource resource) {
+		ensureInitialized();
 		//check if we're in an aliased project or workspace before updating structure changes.  In the
 		//deletion case, we need to know if the resource was in an aliased project *before* deletion.
 		IProject project = resource.getProject();
@@ -658,14 +666,25 @@ public class AliasManager implements IManager, ILifecycleListener, IResourceChan
 	public void shutdown(IProgressMonitor monitor) {
 		workspace.removeResourceChangeListener(this);
 		locationsMap.clear();
+		initialized = false;
 	}
 
 	@Override
 	public void startup(IProgressMonitor monitor) {
 		workspace.addLifecycleListener(this);
 		workspace.addResourceChangeListener(this, IResourceChangeEvent.POST_CHANGE);
-		buildLocationsMap();
-		buildAliasedProjectsSet();
+		// Location map is built lazily on first use to improve startup performance.
+	}
+
+	/**
+	 * Ensures the location map has been initialized. Called lazily on first use.
+	 */
+	private synchronized void ensureInitialized() {
+		if (!initialized) {
+			buildLocationsMap();
+			buildAliasedProjectsSet();
+			initialized = true;
+		}
 	}
 
 	/**
