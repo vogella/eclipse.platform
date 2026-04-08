@@ -809,18 +809,11 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				restoreTree(Policy.subMonitorFor(monitor, 10));
 				restoreSnapshots(Policy.subMonitorFor(monitor, 10));
 
-				// tolerate failure for non-critical information
-				// if startup fails, the entire workspace is shot
-				try {
-					restoreMarkers(workspace.getRoot(), false, Policy.subMonitorFor(monitor, 10));
-				} catch (CoreException e) {
-					problems.merge(e.getStatus());
-				}
-				try {
-					restoreSyncInfo(workspace.getRoot(), Policy.subMonitorFor(monitor, 10));
-				} catch (CoreException e) {
-					problems.merge(e.getStatus());
-				}
+				// Defer non-critical marker and sync info restoration to a
+				// background job to improve startup performance.
+				// These are already tolerant of failures (see below).
+				scheduleNonCriticalRestore();
+
 				// restore meta info last because it might close a project if its description is not readable
 				restoreMetaInfo(problems, Policy.subMonitorFor(monitor, 10));
 				IProject[] roots = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
@@ -839,6 +832,39 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		if (Policy.DEBUG_RESTORE) {
 			Policy.debug("Restore workspace: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
+	}
+
+	/**
+	 * Schedules a background job to restore markers and sync info.
+	 * These are non-critical data that can be loaded after the workspace
+	 * is open without blocking startup.
+	 */
+	private void scheduleNonCriticalRestore() {
+		Job restoreJob = new Job(Messages.resources_startupProblems) {
+			@Override
+			protected IStatus run(IProgressMonitor jobMonitor) {
+				String msg = Messages.resources_startupProblems;
+				MultiStatus problems = new MultiStatus(ResourcesPlugin.PI_RESOURCES,
+						IResourceStatus.FAILED_READ_METADATA, msg, null);
+				try {
+					restoreMarkers(workspace.getRoot(), false, jobMonitor);
+				} catch (CoreException e) {
+					problems.merge(e.getStatus());
+				}
+				try {
+					restoreSyncInfo(workspace.getRoot(), jobMonitor);
+				} catch (CoreException e) {
+					problems.merge(e.getStatus());
+				}
+				if (!problems.isOK()) {
+					Policy.log(problems);
+				}
+				return Status.OK_STATUS;
+			}
+		};
+		restoreJob.setSystem(true);
+		restoreJob.setRule(workspace.getRoot());
+		restoreJob.schedule();
 	}
 
 	/**
