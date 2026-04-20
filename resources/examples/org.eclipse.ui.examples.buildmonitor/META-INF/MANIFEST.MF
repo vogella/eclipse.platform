@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Automatic-Module-Name: org.eclipse.ui.examples.buildmonitor
+Bundle-Name: Build Monitor Example
+Bundle-SymbolicName: org.eclipse.ui.examples.buildmonitor;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Vendor: Eclipse.org
+Require-Bundle: org.eclipse.core.resources;bundle-version="[3.25.0,4.0.0)",
+ org.eclipse.core.runtime;bundle-version="[3.34.0,4.0.0)",
+ org.eclipse.ui;bundle-version="3.208.0",
+ org.eclipse.ui.ide,
+ org.eclipse.jface
+Bundle-ActivationPolicy: lazy
+Bundle-RequiredExecutionEnvironment: JavaSE-21
