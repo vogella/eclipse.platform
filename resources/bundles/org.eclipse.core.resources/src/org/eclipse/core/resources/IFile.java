@@ -1426,7 +1426,7 @@ public interface IFile extends IResource, IEncodedStorage, IAdaptable {
 	 * @return whether the current file is marked as containing sensitive content.
 	 *         This flag is not persisted and is {@code false} by default
 	 * @throws CoreException if the file doesn't exist or if this method fails
-	 * @since 3.24
+	 * @since 3.25
 	 */
 	default boolean isContentRestricted() throws CoreException {
 		if (!exists()) {
@@ -1445,7 +1445,7 @@ public interface IFile extends IResource, IEncodedStorage, IAdaptable {
 	 * @param restricted <code>true</code> if the file should be marked restricted,
 	 *                   <code>false</code> if the file should be unmarked
 	 * @throws CoreException if the file doesn't exist or if this method fails
-	 * @since 3.24
+	 * @since 3.25
 	 */
 	default void setContentRestricted(boolean restricted) throws CoreException {
 		throw new CoreException(Status.error("Not implemented")); //$NON-NLS-1$

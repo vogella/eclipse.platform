@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2014 IBM Corporation and others.
+ * Copyright (c) 2000, 2026 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -10,6 +10,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Vogella GmbH - per-builder build events
  *******************************************************************************/
 package org.eclipse.core.resources;
 
@@ -85,6 +86,26 @@ import org.eclipse.core.runtime.IProgressMonitor;
  *    If the event is fired by a project refresh the <code>getResource</code>
  *    method returns the project being refreshed.
  *    The workspace is closed for changes during notification of these events.
+ *   </li>
+ *   <li>
+ *    Before-the-fact reports of a single builder about to run on a single
+ *    project. Event type is <code>PRE_PROJECT_BUILD</code>, <code>getSource</code>
+ *    returns the {@link IProject} being built, <code>getBuilderName</code>
+ *    returns the id of the builder that is about to run, and <code>getBuildKind</code>
+ *    returns the kind of build. Fired once per builder per project, nested
+ *    inside a surrounding <code>PRE_BUILD</code>/<code>POST_BUILD</code> pair.
+ *    No resource delta is provided.
+ *   </li>
+ *   <li>
+ *    After-the-fact reports of a single builder having run on a single project.
+ *    Event type is <code>POST_PROJECT_BUILD</code>, <code>getSource</code>
+ *    returns the {@link IProject} that was built, <code>getBuilderName</code>
+ *    returns the id of the builder that ran, and <code>getBuildKind</code>
+ *    returns the kind of build. Fired once per builder per project, nested
+ *    inside a surrounding <code>PRE_BUILD</code>/<code>POST_BUILD</code> pair.
+ *    No resource delta is provided.
+ *    When the workspace is configured for parallel builds, events for
+ *    different projects may be delivered concurrently on different threads.
  *   </li>
  * </ul>
  * <p>
@@ -180,6 +201,42 @@ public interface IResourceChangeEvent {
 	int PRE_REFRESH = 32;
 
 	/**
+	 * Event type constant (bit mask) indicating a before-the-fact report
+	 * that a single builder is about to run on a single project.
+	 * <p>
+	 * <code>getSource</code> returns the {@link IProject} being built,
+	 * <code>getBuilderName</code> returns the id of the builder, and
+	 * <code>getBuildKind</code> returns the kind of build. No resource
+	 * delta is provided. See class comments for further details.
+	 * </p>
+	 *
+	 * @see #getType()
+	 * @see #getSource()
+	 * @see #getBuilderName()
+	 * @see #getBuildKind()
+	 * @since 3.25
+	 */
+	int PRE_PROJECT_BUILD = 64;
+
+	/**
+	 * Event type constant (bit mask) indicating an after-the-fact report
+	 * that a single builder has run on a single project.
+	 * <p>
+	 * <code>getSource</code> returns the {@link IProject} that was built,
+	 * <code>getBuilderName</code> returns the id of the builder, and
+	 * <code>getBuildKind</code> returns the kind of build. No resource
+	 * delta is provided. See class comments for further details.
+	 * </p>
+	 *
+	 * @see #getType()
+	 * @see #getSource()
+	 * @see #getBuilderName()
+	 * @see #getBuildKind()
+	 * @since 3.25
+	 */
+	int POST_PROJECT_BUILD = 128;
+
+	/**
 	 * Returns all marker deltas of the specified type that are associated
 	 * with resource deltas for this event. If <code>includeSubtypes</code>
 	 * is <code>false</code>, only marker deltas whose type exactly matches
@@ -262,6 +319,25 @@ public interface IResourceChangeEvent {
 	 * @see #PRE_CLOSE
 	 * @see #PRE_DELETE
 	 * @see #PRE_REFRESH
+	 * @see #PRE_PROJECT_BUILD
+	 * @see #POST_PROJECT_BUILD
 	 */
 	int getType();
+
+	/**
+	 * Returns the id of the builder this event relates to, or <code>null</code>
+	 * if not applicable to this type of event.
+	 * <p>
+	 * For {@link #PRE_PROJECT_BUILD} and {@link #POST_PROJECT_BUILD} events
+	 * this returns the builder id as declared in the project's build spec
+	 * (the <code>ICommand</code>'s builder name). For all other event types
+	 * this returns <code>null</code>.
+	 * </p>
+	 *
+	 * @return the builder id, or <code>null</code> if not applicable
+	 * @since 3.25
+	 */
+	default String getBuilderName() {
+		return null;
+	}
 }

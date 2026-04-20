@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2008 IBM Corporation and others.
+ * Copyright (c) 2000, 2026 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -10,6 +10,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Vogella GmbH - per-builder build events
  *******************************************************************************/
 package org.eclipse.core.internal.events;
 
@@ -60,6 +61,8 @@ public class ResourceChangeListenerList {
 	private volatile int count8 = 0;
 	private volatile int count16 = 0;
 	private volatile int count32 = 0;
+	private volatile int count64 = 0;
+	private volatile int count128 = 0;
 
 	/**
 	 * The list of listeners.
@@ -114,6 +117,12 @@ public class ResourceChangeListenerList {
 		if ((mask & 32) != 0) {
 			count32++;
 		}
+		if ((mask & 64) != 0) {
+			count64++;
+		}
+		if ((mask & 128) != 0) {
+			count128++;
+		}
 	}
 
 	/**
@@ -138,6 +147,10 @@ public class ResourceChangeListenerList {
 			return count16 > 0;
 		case 32:
 			return count32 > 0;
+		case 64:
+			return count64 > 0;
+		case 128:
+			return count128 > 0;
 		default:
 			return false;
 		}
@@ -170,6 +183,8 @@ public class ResourceChangeListenerList {
 		count8 = 0;
 		count16 = 0;
 		count32 = 0;
+		count64 = 0;
+		count128 = 0;
 	}
 
 	private void removing(int mask) {
@@ -190,6 +205,12 @@ public class ResourceChangeListenerList {
 		}
 		if ((mask & 32) != 0) {
 			count32--;
+		}
+		if ((mask & 64) != 0) {
+			count64--;
+		}
+		if ((mask & 128) != 0) {
+			count128--;
 		}
 	}
 

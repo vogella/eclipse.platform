@@ -215,6 +215,24 @@ public class NotificationManager implements IManager, ILifecycleListener {
 	}
 
 	/**
+	 * Dispatches a per-builder build event (PRE_PROJECT_BUILD / POST_PROJECT_BUILD).
+	 * <p>
+	 * Unlike {@link #broadcastChanges}, this path does not compute a resource
+	 * delta, does not coalesce against the last build tree, and does not update
+	 * {@code lastPostBuildTree}. Per-builder events are pure timing/metadata
+	 * signals nested inside the surrounding workspace-level PRE_BUILD/POST_BUILD
+	 * pair, which continues to carry the aggregated delta.
+	 * </p>
+	 */
+	public void broadcastProjectBuildEvent(IProject project, String builderName, int type, int buildKind) {
+		if (!listeners.hasListenerFor(type)) {
+			return;
+		}
+		ResourceChangeEvent event = new ResourceChangeEvent(project, type, buildKind, project, builderName);
+		notify(getListeners(), event, false);
+	}
+
+	/**
 	 * Helper method for the save participant lifecycle computation. */
 	public void broadcastChanges(IResourceChangeListener listener, int type, IResourceDelta delta) {
 		ResourceChangeListenerList.ListenerEntry[] entries;

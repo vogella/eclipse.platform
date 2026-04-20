@@ -49,6 +49,7 @@ import org.eclipse.core.resources.IIncrementalProjectBuilder2;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IResourceChangeEvent;
 import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.resources.IResourceStatus;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
@@ -262,6 +263,10 @@ public class BuildManager implements ICoreConstants, IManager, ILifecycleListene
 			currentTree = ((trigger == IncrementalProjectBuilder.FULL_BUILD) || clean) ? null : workspace.getElementTree();
 			int depth = -1;
 			ISchedulingRule rule = null;
+			IProject builderProject = builder.getProject();
+			String builderName = builder.getCommand().getBuilderName();
+			workspace.broadcastProjectBuildEvent(builderProject, builderName,
+					IResourceChangeEvent.PRE_PROJECT_BUILD, trigger);
 			try {
 				//short-circuit if none of the projects this builder cares about have changed.
 				if (!needsBuild(currentBuilder, trigger)) {
@@ -298,30 +303,35 @@ public class BuildManager implements ICoreConstants, IManager, ILifecycleListene
 				//do the build
 				SafeRunner.run(getSafeRunnable(currentBuilder, trigger, args, status, monitor));
 			} finally {
-				// Re-acquire the WS lock, then release the scheduling rule
-				if (depth >= 0) {
-					getWorkManager().endUnprotected(depth);
-				}
-				if (rule != null) {
-					Job.getJobManager().endRule(rule);
-				}
-				// Be sure to clean up after ourselves.
-				if (clean || currentBuilder.wasForgetStateRequested()) {
-					currentBuilder.setLastBuiltTree(null);
-				} else if (currentBuilder.wasRememberStateRequested()) {
-					// If remember last build state, and FULL_BUILD
-					// last tree must be set to => null for next build
-					if (trigger == IncrementalProjectBuilder.FULL_BUILD) {
-						currentBuilder.setLastBuiltTree(null);
+				try {
+					workspace.broadcastProjectBuildEvent(builderProject, builderName,
+							IResourceChangeEvent.POST_PROJECT_BUILD, trigger);
+				} finally {
+					// Re-acquire the WS lock, then release the scheduling rule
+					if (depth >= 0) {
+						getWorkManager().endUnprotected(depth);
 					}
-					// else don't modify the last built tree
-				} else {
-					// remember the current state as the last built state.
-					ElementTree lastTree = workspace.getElementTree();
-					lastTree.immutable();
-					currentBuilder.setLastBuiltTree(lastTree);
+					if (rule != null) {
+						Job.getJobManager().endRule(rule);
+					}
+					// Be sure to clean up after ourselves.
+					if (clean || currentBuilder.wasForgetStateRequested()) {
+						currentBuilder.setLastBuiltTree(null);
+					} else if (currentBuilder.wasRememberStateRequested()) {
+						// If remember last build state, and FULL_BUILD
+						// last tree must be set to => null for next build
+						if (trigger == IncrementalProjectBuilder.FULL_BUILD) {
+							currentBuilder.setLastBuiltTree(null);
+						}
+						// else don't modify the last built tree
+					} else {
+						// remember the current state as the last built state.
+						ElementTree lastTree = workspace.getElementTree();
+						lastTree.immutable();
+						currentBuilder.setLastBuiltTree(lastTree);
+					}
+					hookEndBuild(builder);
 				}
-				hookEndBuild(builder);
 			}
 		} finally {
 			currentBuilders.remove(currentBuilder);
