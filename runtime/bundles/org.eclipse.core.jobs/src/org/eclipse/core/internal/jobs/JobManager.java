@@ -1366,14 +1366,14 @@ public class JobManager implements IJobManager, DebugOptionsListener {
 	@Override
 	public void optionsChanged(DebugOptions options) {
 		DEBUG_TRACE = options.newDebugTrace(PI_JOBS);
-		DEBUG = options.getBooleanOption(OPTION_DEBUG_JOBS, false);
-		DEBUG_BEGIN_END = options.getBooleanOption(OPTION_DEBUG_BEGIN_END, false);
-		DEBUG_YIELDING = options.getBooleanOption(OPTION_DEBUG_YIELDING, false);
-		DEBUG_YIELDING_DETAILED = options.getBooleanOption(OPTION_DEBUG_YIELDING_DETAILED, false);
-		DEBUG_DEADLOCK = options.getBooleanOption(OPTION_DEADLOCK_ERROR, false);
-		DEBUG_LOCKS = options.getBooleanOption(OPTION_LOCKS, false);
-		DEBUG_SHUTDOWN = options.getBooleanOption(OPTION_SHUTDOWN, false);
-		DEBUG_BLOCKED_UNBLOCKED = options.getBooleanOption(OPTION_DEBUG_BLOCKED_UNBLOCKED, false);
+		DEBUG = options.getBooleanOption(OPTION_DEBUG_JOBS, DEBUG);
+		DEBUG_BEGIN_END = options.getBooleanOption(OPTION_DEBUG_BEGIN_END, DEBUG_BEGIN_END);
+		DEBUG_YIELDING = options.getBooleanOption(OPTION_DEBUG_YIELDING, DEBUG_YIELDING);
+		DEBUG_YIELDING_DETAILED = options.getBooleanOption(OPTION_DEBUG_YIELDING_DETAILED, DEBUG_YIELDING_DETAILED);
+		DEBUG_DEADLOCK = options.getBooleanOption(OPTION_DEADLOCK_ERROR, DEBUG_DEADLOCK);
+		DEBUG_LOCKS = options.getBooleanOption(OPTION_LOCKS, DEBUG_LOCKS);
+		DEBUG_SHUTDOWN = options.getBooleanOption(OPTION_SHUTDOWN, DEBUG_SHUTDOWN);
+		DEBUG_BLOCKED_UNBLOCKED = options.getBooleanOption(OPTION_DEBUG_BLOCKED_UNBLOCKED, DEBUG_BLOCKED_UNBLOCKED);
 	}
 
 	@Override
@@ -1395,7 +1395,7 @@ public class JobManager implements IJobManager, DebugOptionsListener {
 		IStatus reason;
 		InternalJob blockingJob = blockingJobs.stream().sorted(Comparator.comparing(InternalJob::isSystem)).findFirst()
 				.orElse(null);
-		if (blockingJob == null || blockingJob instanceof ThreadJob || blockingJob.isSystem()) {
+		if (blockingJob == null || blockingJob instanceof ThreadJob) {
 			reason = new Status(IStatus.INFO, JobManager.PI_JOBS, 1, JobMessages.jobs_blocked0, null);
 		} else {
 			String msg = NLS.bind(JobMessages.jobs_blocked1, blockingJob.getName());

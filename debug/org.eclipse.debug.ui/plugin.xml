@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.0"?>
 <!--
-     Copyright (c) 2005, 2025 IBM Corporation and others.
+     Copyright (c) 2005, 2026 IBM Corporation and others.
 
      This program and the accompanying materials
      are made available under the terms of the Eclipse Public License 2.0
@@ -754,6 +754,17 @@
                helpContextId="view_management_action_context"
                label="%ViewManagementAction.label"
                menubarPath="additions">
+         </action>
+      </viewContribution>
+      <viewContribution
+            targetID="org.eclipse.ui.console.ConsoleView"
+            id="org.eclipse.ui.console.ConsoleView.viewActions">
+         <action
+               label="%ConsolePreferencesAction.label"
+               tooltip="%ConsolePreferencesAction.tooltip"
+               class="org.eclipse.debug.internal.ui.views.console.ConsoleShowPreferencesAction"
+               menubarPath="additions"
+               id="org.eclipse.debug.ui.consolePreferencesAction.viewAction">
          </action>
       </viewContribution>
 <!-- Contributions to Debug View Toolbar -->
@@ -1558,13 +1569,22 @@
             id="org.eclipse.debug.ui.variablesView.popupMenu">
       <!-- Variable Group -->
          <action
-               label="%CopyVariablesToClipboardAction.label"
+               label="%CopyVariableRowToClipboardAction.label"
                icon="$nl$/icons/full/elcl16/copy_edit_co.svg"
                definitionId="org.eclipse.ui.edit.copy"
                helpContextId="copy_variables_to_clipboard_action_context"
-               class="org.eclipse.debug.internal.ui.viewers.model.VirtualCopyToClipboardActionDelegate"
+               class="org.eclipse.debug.internal.ui.actions.expressions.CopyVariableRowToClipboardActionDelegate"
                menubarPath="variableGroup"
-               id="org.eclipse.debug.ui.debugview.popupMenu.copyVariablesToClipboard">
+               id="org.eclipse.debug.ui.debugview.popupMenu.copyVariableRowToClipboard">
+         </action>
+         <action
+               label="%CopyVariableToClipboardAction.label"
+               icon="$nl$/icons/full/elcl16/copy_edit_co.svg"
+               definitionId="org.eclipse.ui.edit.copy"
+               helpContextId="copy_variables_to_clipboard_action_context"
+               class="org.eclipse.debug.internal.ui.actions.expressions.CopyVariableToClipboardActionDelegate"
+               menubarPath="variableGroup"
+               id="org.eclipse.debug.ui.debugview.popupMenu.copyVariableToClipboard">
          </action>
          <action
                label="%SelectAll.label"
@@ -1586,7 +1606,7 @@
                icon="$nl$/icons/full/elcl16/rem_all_co.svg"
                helpContextId="remove_all_expressions_action_context"
                class="org.eclipse.debug.internal.ui.actions.expressions.RemoveAllExpressionsAction"
-               menubarPath="expressionGroup"
+               menubarPath="expressionRemoveGroup"
                id="org.eclipse.debug.ui.debugview.popupMenu.removeAllExpressionsAction">
          </action>
          <action
@@ -1594,7 +1614,7 @@
                icon="$nl$/icons/full/elcl16/rem_co.svg"
                helpContextId="remove_expression_action_context"
                class="org.eclipse.debug.internal.ui.actions.expressions.RemoveExpressionAction"
-               menubarPath="expressionGroup"
+               menubarPath="expressionRemoveGroup"
                id="org.eclipse.debug.ui.debugview.popupMenu.removeExpressionAction">
             <selection
                   class="org.eclipse.debug.core.model.IExpression">
@@ -1604,13 +1624,25 @@
             </selection>
          </action>
          <action
-               label="%CopyExpressionsToClipboardAction.label"
+               label="%CopyExpressionRowToClipboardAction.label"
                icon="$nl$/icons/full/elcl16/copy_edit_co.svg"
                definitionId="org.eclipse.ui.edit.copy"
                helpContextId="copy_variables_to_clipboard_action_context"
-               class="org.eclipse.debug.internal.ui.actions.expressions.CopyExpressionsToClipboardActionDelegate"
+               class="org.eclipse.debug.internal.ui.actions.expressions.CopyExpressionRowToClipboardActionDelegate"
                menubarPath="expressionGroup"
-               id="org.eclipse.debug.ui.debugview.popupMenu.copyVariablesToClipboard">
+               id="org.eclipse.debug.ui.debugview.popupMenu.copyExpressionsRowToClipboard">
+            <selection
+                  class="org.eclipse.debug.core.model.IDebugElement">
+            </selection>
+         </action>
+         <action
+               label="%CopyExpressionToClipboardAction.label"
+               icon="$nl$/icons/full/elcl16/copy_edit_co.svg"
+               definitionId="org.eclipse.ui.edit.copy"
+               helpContextId="copy_variables_to_clipboard_action_context"
+               class="org.eclipse.debug.internal.ui.actions.expressions.CopyExpressionToClipboardActionDelegate"
+               menubarPath="expressionGroup"
+               id="org.eclipse.debug.ui.debugview.popupMenu.copyExpressionToClipboard">
             <selection
                   class="org.eclipse.debug.core.model.IDebugElement">
             </selection>
@@ -2984,9 +3016,12 @@ M4 = Platform-specific fourth key
            perspectiveId="org.eclipse.debug.ui.DebugPerspective"/>
   </extension>
 
-   <extension
-         point="org.eclipse.ui.themes">
-		<themeElementCategory label="%debugPresentation.label" id="org.eclipse.debug.ui.presentation"/>
+	<extension point="org.eclipse.ui.themes">
+		<themeElementCategory id="org.eclipse.debug.ui.presentation" label="%debugPresentation.label">
+			<description>
+				%org.eclipse.debug.ui.presentation.description
+			</description>
+		</themeElementCategory>
       <fontDefinition
             label="%DetailPaneFontDefinition.label"
             defaultsTo="org.eclipse.jface.textfont"
@@ -3374,6 +3409,9 @@ M4 = Platform-specific fourth key
             lightweight="true"
             location="TOP_RIGHT"
             state="true">
+         <description>
+            %prototype.decorator.description
+         </description>
          <enablement>
             <objectClass
                   name="org.eclipse.debug.internal.core.LaunchConfiguration">

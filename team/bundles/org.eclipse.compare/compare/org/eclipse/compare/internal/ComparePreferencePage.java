@@ -162,7 +162,7 @@ public class ComparePreferencePage extends PreferencePage implements IWorkbenchP
 
 	public static void initDefaults(IPreferenceStore store) {
 		store.setDefault(OPEN_STRUCTURE_COMPARE, true);
-		store.setDefault(USE_OUTLINE_VIEW, false);
+		store.setDefault(USE_OUTLINE_VIEW, true);
 		store.setDefault(SYNCHRONIZE_SCROLLING, true);
 		store.setDefault(SHOW_PSEUDO_CONFLICTS, false);
 		store.setDefault(INITIALLY_SHOW_ANCESTOR_PANE, false);
@@ -170,13 +170,13 @@ public class ComparePreferencePage extends PreferencePage implements IWorkbenchP
 		store.setDefault(PREF_SAVE_ALL_EDITORS, false);
 		store.setDefault(ADDED_LINES_REGEX, ""); //$NON-NLS-1$
 		store.setDefault(REMOVED_LINES_REGEX, ""); //$NON-NLS-1$
-		store.setDefault(USE_SINGLE_LINE, true);
+		store.setDefault(USE_SINGLE_LINE, false);
 		store.setDefault(HIGHLIGHT_TOKEN_CHANGES, true);
 		store.setDefault(CAPPING_DISABLED, false);
 		store.setDefault(PATH_FILTER, ""); //$NON-NLS-1$
 		store.setDefault(ICompareUIConstants.PREF_NAVIGATION_END_ACTION, ICompareUIConstants.PREF_VALUE_PROMPT);
 		store.setDefault(ICompareUIConstants.PREF_NAVIGATION_END_ACTION_LOCAL, ICompareUIConstants.PREF_VALUE_LOOP);
-		store.setDefault(SWAPPED, false);
+		store.setDefault(SWAPPED, true);
 	}
 
 	public ComparePreferencePage() {

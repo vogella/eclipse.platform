@@ -48,7 +48,6 @@ package org.eclipse.terminal.internal.emulator;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.lang.reflect.Field;
 import java.net.SocketException;
 import java.nio.charset.Charset;
 import java.util.EnumMap;
@@ -84,6 +83,7 @@ import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.KeyListener;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.layout.GridData;
@@ -678,7 +678,7 @@ public class VT100TerminalControl implements ITerminalControlForText, ITerminalC
 	}
 
 	private void onTerminalColorsChanged() {
-		Map<TerminalColor, RGB> map = new EnumMap<>(TerminalColor.class);
+		Map<TerminalColor, Color> map = new EnumMap<>(TerminalColor.class);
 		TerminalColor[] values = TerminalColor.values();
 		for (TerminalColor terminalColor : values) {
 			RGB rgb = null;
@@ -694,7 +694,7 @@ public class VT100TerminalControl implements ITerminalControlForText, ITerminalC
 			if (rgb == null) {
 				rgb = TerminalColorPresets.INSTANCE.getDefaultPreset().getRGB(terminalColor);
 			}
-			map.put(terminalColor, rgb);
+			map.put(terminalColor, new Color(rgb));
 		}
 		fCtlText.updateColors(map);
 	}
@@ -762,7 +762,7 @@ public class VT100TerminalControl implements ITerminalControlForText, ITerminalC
 		snapshot.updateSnapshot(false);
 		fPollingTextCanvasModel = new PollingTextCanvasModel(snapshot);
 		fCtlText = new TextCanvas(fWndParent, fPollingTextCanvasModel, SWT.NONE,
-				new TextLineRenderer(fCtlText, fPollingTextCanvasModel));
+				new TextLineRenderer(() -> fCtlText, fPollingTextCanvasModel));
 
 		fCtlText.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		fCtlText.addResizeHandler((lines, columns) -> fTerminalText.setDimensions(lines, columns));
@@ -1242,18 +1242,7 @@ public class VT100TerminalControl implements ITerminalControlForText, ITerminalC
 					cmdEvent.widget = event.widget;
 					cmdEvent.character = event.character;
 					cmdEvent.keyCode = event.keyCode;
-					////Bug - KeyEvent.keyLocation was introduced in Eclipse 3.6
-					////Use reflection for now to remain backward compatible down to Eclipse 3.4
-					//cmdEvent.keyLocation = event.keyLocation;
-					try {
-						Field f1 = event.getClass().getField("keyLocation"); //$NON-NLS-1$
-						Field f2 = cmdEvent.getClass().getField("keyLocation"); //$NON-NLS-1$
-						f2.set(cmdEvent, f1.get(event));
-					} catch (NoSuchFieldException nsfe) {
-						/* ignore, this is Eclipse 3.5 or earlier */
-					} catch (Throwable t) {
-						t.printStackTrace();
-					}
+					cmdEvent.keyLocation = event.keyLocation;
 					cmdEvent.stateMask = event.stateMask;
 					event.doit = false;
 					try {

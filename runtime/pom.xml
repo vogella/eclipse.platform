@@ -15,7 +15,7 @@
   <parent>
     <groupId>org.eclipse.platform</groupId>
     <artifactId>eclipse.platform</artifactId>
-    <version>4.39.0-SNAPSHOT</version>
+    <version>4.40.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>eclipse.platform.runtime</artifactId>
@@ -23,7 +23,7 @@
 
   <modules>
     <module>bundles</module>
-    <module>features/org.eclipse.core.runtime.feature</module>
+    <module>features</module>
     <module>tests</module>
   </modules>
 

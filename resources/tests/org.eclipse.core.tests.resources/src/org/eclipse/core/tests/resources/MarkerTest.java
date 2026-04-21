@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2000, 2017 IBM Corporation and others.
+ *  Copyright (c) 2000, 2026 IBM Corporation and others.
  *
  *  This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License 2.0
@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
 import org.assertj.core.api.ObjectAssert;
+import org.eclipse.core.internal.resources.ContentDescriptionManager;
 import org.eclipse.core.internal.resources.MarkerManager;
 import org.eclipse.core.internal.resources.MarkerReader;
 import org.eclipse.core.internal.resources.Resource;
@@ -55,6 +56,10 @@ import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IResourceChangeEvent;
+import org.eclipse.core.resources.IResourceChangeListener;
+import org.eclipse.core.resources.IResourceDelta;
+import org.eclipse.core.resources.IResourceDeltaVisitor;
 import org.eclipse.core.resources.IResourceVisitor;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.IWorkspaceRunnable;
@@ -62,6 +67,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
@@ -74,6 +80,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(WorkspaceResetExtension.class)
 public class MarkerTest {
+
+	private static final IResourceChangeListener LOG_RESOURCE_DELTA = MarkerTest::logDeltaEvent;
 
 	public static final String TRANSIENT_MARKER = "org.eclipse.core.tests.resources.transientmarker";
 	public static final String TEST_PROBLEM_MARKER = "org.eclipse.core.tests.resources.testproblem";
@@ -191,8 +199,8 @@ public class MarkerTest {
 
 	@BeforeEach
 	public void setUp() throws Exception {
-		resources = buildResources(getWorkspace().getRoot(),
-				new String[] { "/", "1/", "1/1", "1/2/", "1/2/1", "1/2/2/", "2/", "2/1", "2/2/", "2/2/1", "2/2/2/" });
+		resources = buildResources(getWorkspace().getRoot(), "/", "1/", "1/1", "1/2/", "1/2/1", "1/2/2/", "2/", "2/1",
+				"2/2/", "2/2/1", "2/2/2/");
 		createInWorkspace(resources);
 
 		// disable autorefresh an wait till that is finished
@@ -201,6 +209,8 @@ public class MarkerTest {
 		prefs.putBoolean(ResourcesPlugin.PREF_AUTO_REFRESH, false);
 		Job.getJobManager().wakeUp(ResourcesPlugin.FAMILY_AUTO_REFRESH);
 		Job.getJobManager().join(ResourcesPlugin.FAMILY_AUTO_REFRESH, null);
+		ResourcesPlugin.getWorkspace().addResourceChangeListener(LOG_RESOURCE_DELTA);
+		cancelAndJoin(ContentDescriptionManager.FAMILY_DESCRIPTION_CACHE_FLUSH);
 	}
 
 
@@ -211,6 +221,7 @@ public class MarkerTest {
 		}
 		IEclipsePreferences prefs = InstanceScope.INSTANCE.getNode(ResourcesPlugin.PI_RESOURCES);
 		prefs.putBoolean(ResourcesPlugin.PREF_AUTO_REFRESH, originalRefreshSetting);
+		ResourcesPlugin.getWorkspace().removeResourceChangeListener(LOG_RESOURCE_DELTA);
 	}
 
 	/**
@@ -969,9 +980,13 @@ public class MarkerTest {
 		IMarker subFileMarker = subFile.createMarker(IMarker.BOOKMARK);
 		listener.reset();
 
-		// move the files
-		file.move(destFile.getFullPath(), IResource.FORCE, createTestMonitor());
-		subFile.move(destSubFile.getFullPath(), IResource.FORCE, createTestMonitor());
+		// move the files in one atomic workspace operation to prevent background jobs
+		// (e.g. charset/encoding validation) from running between the two moves and
+		// adding unexpected marker changes to the listener
+		getWorkspace().run(monitor -> {
+			file.move(destFile.getFullPath(), IResource.FORCE, monitor);
+			subFile.move(destSubFile.getFullPath(), IResource.FORCE, monitor);
+		}, createTestMonitor());
 
 		// verify marker deltas
 		listener.assertNumberOfAffectedResources(4);
@@ -993,7 +1008,7 @@ public class MarkerTest {
 	 * Tests the appearance of marker changes in the resource delta.
 	 */
 	@Test
-	public void testMarkerDeltasMoveProject() throws CoreException {
+	public void testMarkerDeltasMoveProject() throws Exception {
 		// Create and register a listener.
 		final MarkersChangeListener listener = new MarkersChangeListener();
 		setResourceChangeListener(listener);
@@ -1023,6 +1038,7 @@ public class MarkerTest {
 			IPath destination = IPath.fromOSString(project.getName() + "move");
 			project.move(destination, true, createTestMonitor());
 		}
+		cancelAndJoin(ContentDescriptionManager.FAMILY_DESCRIPTION_CACHE_FLUSH);
 
 		// verify marker deltas
 		IResourceVisitor visitor = resource -> {
@@ -1380,4 +1396,55 @@ public class MarkerTest {
 		}
 	}
 
+	private static void cancelAndJoin(Object family) throws Exception {
+		Job.getJobManager().cancel(family);
+		Job.getJobManager().join(family, null);
+	}
+
+	private static void logDeltaEvent(IResourceChangeEvent event) {
+		StringBuilder s = new StringBuilder();
+		s.append("Logging resource change event");
+		s.append(System.lineSeparator());
+		s.append("thread: ");
+		s.append(Thread.currentThread().getName());
+		s.append(System.lineSeparator());
+		s.append("type: ");
+		s.append(event.getType());
+		s.append(System.lineSeparator());
+		s.append("buildKind: ");
+		s.append(event.getBuildKind());
+		s.append(System.lineSeparator());
+		s.append("resource: ");
+		s.append(event.getResource());
+		s.append(System.lineSeparator());
+		s.append("source: ");
+		s.append(event.getSource());
+		IResourceDelta delta = event.getDelta();
+		if (delta != null) {
+			s.append(System.lineSeparator());
+			s.append("Delta:");
+			IResourceDeltaVisitor visitor = d -> {
+				s.append(System.lineSeparator());
+				s.append("\tkind: ");
+				s.append(d.getKind());
+				s.append(", resource: ");
+				s.append(d.getResource());
+				return true;
+			};
+			try {
+				delta.accept(visitor);
+			} catch (CoreException e) {
+				logError("Error occurred while visiting delta", e);
+			}
+			logInfo(s.toString());
+		}
+	}
+
+	private static void logError(String errorMessage, CoreException e) {
+		ResourcesPlugin.getPlugin().getLog().log(Status.error(errorMessage, e));
+	}
+
+	private static void logInfo(String message) {
+		ResourcesPlugin.getPlugin().getLog().log(Status.info(message));
+	}
 }

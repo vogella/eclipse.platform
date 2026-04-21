@@ -15,7 +15,6 @@
 package org.eclipse.ui.internal.console;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -36,6 +35,7 @@ import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchPartSite;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
@@ -48,7 +48,7 @@ import org.eclipse.ui.console.IConsolePageParticipant;
 import org.eclipse.ui.console.IConsoleView;
 import org.eclipse.ui.console.IPatternMatchListener;
 import org.eclipse.ui.console.TextConsole;
-import org.eclipse.ui.progress.UIJob;
+import org.eclipse.ui.part.IPage;
 import org.eclipse.ui.progress.WorkbenchJob;
 
 /**
@@ -62,12 +62,12 @@ public class ConsoleManager implements IConsoleManager {
 	/**
 	 * Console listeners
 	 */
-	private final ListenerList<IConsoleListener> fListeners = new ListenerList<>();
+	private final ListenerList<IConsoleListener> fListeners;
 
 	/**
 	 * List of registered consoles
 	 */
-	private final List<IConsole> fConsoles = new ArrayList<>(10);
+	private final List<IConsole> fConsoles;
 
 
 	// change notification constants
@@ -80,60 +80,52 @@ public class ConsoleManager implements IConsoleManager {
 
 	private List<ConsoleFactoryExtension> fConsoleFactoryExtensions;
 
-	private final List<IConsoleView> fConsoleViews = new ArrayList<>();
+	private final List<ConsoleView> fConsoleViews;
 
-	private boolean fWarnQueued = false;
+	/** Used to trigger redrawing of console pages when links changed */
+	private final RedrawJob redrawConsoleJob;
 
-	private final RepaintJob fRepaintJob = new RepaintJob();
+	/** Used to show console view in active window */
+	private final ShowConsoleViewJob showConsoleJob;
 
-	private class RepaintJob extends WorkbenchJob {
-		private final Set<IConsole> list = new HashSet<>();
+	/** Show console change indication in all views if console is not visible */
+	private final WarnAboutContentChangedJob warnAboutContentChangeJob;
 
-		public RepaintJob() {
-			super("schedule redraw() of viewers"); //$NON-NLS-1$
+	public ConsoleManager() {
+		fListeners = new ListenerList<>();
+		fConsoles = new ArrayList<>(10);
+		fConsoleViews = new ArrayList<>();
+		redrawConsoleJob = new RedrawJob();
+		showConsoleJob = new ShowConsoleViewJob();
+		warnAboutContentChangeJob = new WarnAboutContentChangedJob();
+	}
+
+	private class RedrawJob extends AbstractConsoleJob {
+
+		public RedrawJob() {
+			super("Schedule console redraw"); //$NON-NLS-1$
 			setSystem(true);
 		}
 
 		@Override
-		public boolean belongsTo(Object family) {
-			return family == ConsoleManager.CONSOLE_JOB_FAMILY;
-		}
-
-		void addConsole(IConsole console) {
-			synchronized (list) {
-				list.add(console);
-			}
-		}
-
-		@Override
-		public IStatus runInUIThread(IProgressMonitor monitor) {
-			synchronized (list) {
-				if (list.isEmpty()) {
-					return Status.OK_STATUS;
-				}
-
-				IWorkbenchWindow[] workbenchWindows = PlatformUI.getWorkbench().getWorkbenchWindows();
-				for (IWorkbenchWindow window : workbenchWindows) {
-					if (window != null) {
-						IWorkbenchPage page = window.getActivePage();
-						if (page != null) {
-							IViewPart part = page.findView(IConsoleConstants.ID_CONSOLE_VIEW);
-							if (part != null && part instanceof IConsoleView) {
-								ConsoleView view = (ConsoleView) part;
-								if (list.contains(view.getConsole())) {
-									Control control = view.getCurrentPage().getControl();
-									if (!control.isDisposed()) {
-										control.redraw();
-									}
-								}
-							}
-
+		protected void workWith(IConsole console, IProgressMonitor monitor) {
+			synchronized (fConsoleViews) {
+				for (ConsoleView view : fConsoleViews) {
+					if (console.equals(view.getConsole())) {
+						IPage currentPage = view.getCurrentPage();
+						if (currentPage == null) {
+							continue;
+						}
+						Control control = currentPage.getControl();
+						if (control != null && !control.isDisposed()) {
+							control.redraw();
 						}
 					}
+					if (monitor.isCanceled()) {
+						return;
+					}
 				}
-				list.clear();
 			}
-			return Status.OK_STATUS;
 		}
 	}
 
@@ -256,12 +248,11 @@ public class ConsoleManager implements IConsoleManager {
 		new ConsoleNotifier().notify(consoles, type);
 	}
 
-
-	private class ShowConsoleViewJob extends WorkbenchJob {
+	private abstract static class AbstractConsoleJob extends WorkbenchJob {
 		private final Set<IConsole> queue = new LinkedHashSet<>();
 
-		ShowConsoleViewJob() {
-			super("Show Console View"); //$NON-NLS-1$
+		AbstractConsoleJob(String name) {
+			super(name);
 			setSystem(true);
 			setPriority(Job.SHORT);
 		}
@@ -271,7 +262,7 @@ public class ConsoleManager implements IConsoleManager {
 			return family == ConsoleManager.CONSOLE_JOB_FAMILY;
 		}
 
-		void addConsole(IConsole console) {
+		protected void addConsole(IConsole console) {
 			synchronized (queue) {
 				queue.add(console);
 			}
@@ -279,13 +270,16 @@ public class ConsoleManager implements IConsoleManager {
 
 		@Override
 		public IStatus runInUIThread(IProgressMonitor monitor) {
-			Set<IConsole> consolesToShow;
+			Set<IConsole> consolesToWorkWith;
 			synchronized (queue) {
-				consolesToShow = new LinkedHashSet<>(queue);
+				consolesToWorkWith = new LinkedHashSet<>(queue);
 				queue.clear();
 			}
-			for (IConsole c : consolesToShow) {
-				showConsole(c);
+			for (IConsole c : consolesToWorkWith) {
+				workWith(c, monitor);
+				if (monitor.isCanceled()) {
+					return Status.CANCEL_STATUS;
+				}
 			}
 			synchronized (queue) {
 				if (!queue.isEmpty()) {
@@ -295,7 +289,17 @@ public class ConsoleManager implements IConsoleManager {
 			return Status.OK_STATUS;
 		}
 
-		private void showConsole(IConsole c) {
+		abstract protected void workWith(IConsole console, IProgressMonitor monitor);
+	}
+
+	private class ShowConsoleViewJob extends AbstractConsoleJob {
+
+		ShowConsoleViewJob() {
+			super("Show Console View"); //$NON-NLS-1$
+		}
+
+		@Override
+		protected void workWith(IConsole c, IProgressMonitor monitor) {
 			boolean consoleFound = false;
 			IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
 			if (window != null && c != null) {
@@ -303,7 +307,11 @@ public class ConsoleManager implements IConsoleManager {
 				if (page != null) {
 					synchronized (fConsoleViews) {
 						for (IConsoleView consoleView : fConsoleViews) {
-							if (consoleView.getSite().getPage().equals(page)) {
+							IWorkbenchPartSite site = consoleView.getSite();
+							if (site == null) {
+								continue;
+							}
+							if (site.getPage().equals(page)) {
 								boolean consoleVisible = page.isPartVisible(consoleView);
 								if (consoleVisible) {
 									consoleFound = true;
@@ -313,6 +321,9 @@ public class ConsoleManager implements IConsoleManager {
 									}
 									consoleView.display(c);
 								}
+							}
+							if (monitor.isCanceled()) {
+								return;
 							}
 						}
 					}
@@ -334,14 +345,10 @@ public class ConsoleManager implements IConsoleManager {
 		}
 	}
 
-	private final ShowConsoleViewJob showJob = new ShowConsoleViewJob();
-	/**
-	 * @see IConsoleManager#showConsoleView(IConsole)
-	 */
 	@Override
 	public void showConsoleView(final IConsole console) {
-		showJob.addConsole(console);
-		showJob.schedule(100);
+		showConsoleJob.addConsole(console);
+		showConsoleJob.schedule(100);
 	}
 
 	/**
@@ -366,32 +373,39 @@ public class ConsoleManager implements IConsoleManager {
 
 	@Override
 	public void warnOfContentChange(final IConsole console) {
-		if (!fWarnQueued) {
-			fWarnQueued = true;
-			Job job = new UIJob(ConsolePlugin.getStandardDisplay(), ConsoleMessages.ConsoleManager_consoleContentChangeJob) {
-				@Override
-				public boolean belongsTo(Object family) {
-					return family == ConsoleManager.CONSOLE_JOB_FAMILY;
-				}
+		warnAboutContentChangeJob.addConsole(console);
+		warnAboutContentChangeJob.schedule(50);
+	}
 
-				@Override
-				public IStatus runInUIThread(IProgressMonitor monitor) {
-					IWorkbenchWindow window= PlatformUI.getWorkbench().getActiveWorkbenchWindow();
-					if (window != null) {
-						IWorkbenchPage page= window.getActivePage();
-						if (page != null) {
-							IConsoleView consoleView= (IConsoleView)page.findView(IConsoleConstants.ID_CONSOLE_VIEW);
-							if (consoleView != null) {
-								consoleView.warnOfContentChange(console);
-							}
-						}
+	private final class WarnAboutContentChangedJob extends AbstractConsoleJob {
+
+		private WarnAboutContentChangedJob() {
+			super(ConsoleMessages.ConsoleManager_consoleContentChangeJob);
+		}
+
+		@Override
+		protected void workWith(IConsole console, IProgressMonitor monitor) {
+			List<ConsoleView> viewsToUpdate = new ArrayList<>();
+			synchronized (fConsoleViews) {
+				for (ConsoleView view : fConsoleViews) {
+					IWorkbenchPartSite site = view.getSite();
+					if (site == null) {
+						continue;
 					}
-					fWarnQueued = false;
-					return Status.OK_STATUS;
+					boolean viewVisible = site.getPage().isPartVisible(view);
+					if (viewVisible && view.getConsole() == console) {
+						// No need to update the UI if the console is already on top, since
+						// user will already see content changes. This also prevents unnecessary
+						// redraws which can cause flickering.
+						viewsToUpdate.clear();
+						break;
+					}
+					viewsToUpdate.add(view);
 				}
-			};
-			job.setSystem(true);
-			job.schedule();
+			}
+			for (ConsoleView view : viewsToUpdate) {
+				view.warnOfContentChange(console);
+			}
 		}
 	}
 
@@ -432,11 +446,6 @@ public class ConsoleManager implements IConsoleManager {
 		return list.toArray(new PatternMatchListener[0]);
 	}
 
-	/*
-	 * @see
-	 * org.eclipse.ui.console.IConsoleManager#getPageParticipants(org.eclipse.ui.
-	 * console.IConsole)
-	 */
 	public IConsolePageParticipant[] getPageParticipants(IConsole console) {
 		if(fPageParticipants == null) {
 			fPageParticipants = new ArrayList<>();
@@ -460,9 +469,6 @@ public class ConsoleManager implements IConsoleManager {
 		return list.toArray(new IConsolePageParticipant[0]);
 	}
 
-	/*
-	 * @see org.eclipse.ui.console.IConsoleManager#getConsoleFactories()
-	 */
 	public ConsoleFactoryExtension[] getConsoleFactoryExtensions() {
 		if (fConsoleFactoryExtensions == null) {
 			fConsoleFactoryExtensions = new ArrayList<>();
@@ -478,8 +484,58 @@ public class ConsoleManager implements IConsoleManager {
 
 	@Override
 	public void refresh(final IConsole console) {
-		fRepaintJob.addConsole(console);
-		fRepaintJob.schedule(50);
+		redrawConsoleJob.addConsole(console);
+		redrawConsoleJob.schedule(50);
 	}
 
+	@Override
+	public void consoleShown(IConsole console) {
+		if (isConsoleViewNotVisibleAnywhere(console)) {
+			// if no view with console is visible, ignore
+			return;
+		}
+		console.pageShown();
+	}
+
+	@Override
+	public void consoleHidden(IConsole console) {
+		if (isConsoleVisibleSomewhere(console)) {
+			// if console is still shown in some other view, then there is no need to call
+			// pageHidden() on the console, since user can still see the console
+			return;
+		}
+		console.pageHidden();
+	}
+
+	private boolean isConsoleVisibleSomewhere(IConsole console) {
+		synchronized (fConsoleViews) {
+			for (ConsoleView view : fConsoleViews) {
+				IWorkbenchPartSite site = view.getSite();
+				if (site == null) {
+					continue;
+				}
+				boolean viewVisible = site.getPage().isPartVisible(view);
+				if (viewVisible && view.getConsole() == console) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean isConsoleViewNotVisibleAnywhere(IConsole console) {
+		synchronized (fConsoleViews) {
+			for (ConsoleView view : fConsoleViews) {
+				IWorkbenchPartSite site = view.getSite();
+				if (site == null) {
+					continue;
+				}
+				boolean viewVisible = site.getPage().isPartVisible(view);
+				if (viewVisible && view.getConsole() == console) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
 }
