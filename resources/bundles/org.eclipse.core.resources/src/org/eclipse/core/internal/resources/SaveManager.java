@@ -66,6 +66,7 @@ import org.eclipse.core.internal.localstore.SafeChunkyInputStream;
 import org.eclipse.core.internal.localstore.SafeChunkyOutputStream;
 import org.eclipse.core.internal.localstore.SafeFileInputStream;
 import org.eclipse.core.internal.localstore.SafeFileOutputStream;
+import org.eclipse.core.internal.runtime.StartupTrace;
 import org.eclipse.core.internal.utils.IStringPoolParticipant;
 import org.eclipse.core.internal.utils.Messages;
 import org.eclipse.core.internal.utils.Policy;
@@ -790,6 +791,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	 * which were open when it was last saved.
 	 */
 	protected void restore(IProgressMonitor monitor) throws CoreException {
+		long tRestore = StartupTrace.begin();
 		if (Policy.DEBUG_RESTORE) {
 			Policy.debug("Restore workspace: starting..."); //$NON-NLS-1$
 		}
@@ -804,29 +806,44 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				String msg = Messages.resources_startupProblems;
 				MultiStatus problems = new MultiStatus(ResourcesPlugin.PI_RESOURCES, IResourceStatus.FAILED_READ_METADATA, msg, null);
 
+				long t;
+				t = StartupTrace.begin();
 				restoreMasterTable();
+				StartupTrace.record("SaveManager.restore/restoreMasterTable", t); //$NON-NLS-1$
 				// restore the saved tree and overlay the snapshots if any
+				t = StartupTrace.begin();
 				restoreTree(Policy.subMonitorFor(monitor, 10));
+				StartupTrace.record("SaveManager.restore/restoreTree", t); //$NON-NLS-1$
+				t = StartupTrace.begin();
 				restoreSnapshots(Policy.subMonitorFor(monitor, 10));
+				StartupTrace.record("SaveManager.restore/restoreSnapshots", t); //$NON-NLS-1$
 
 				// tolerate failure for non-critical information
 				// if startup fails, the entire workspace is shot
+				t = StartupTrace.begin();
 				try {
 					restoreMarkers(workspace.getRoot(), false, Policy.subMonitorFor(monitor, 10));
 				} catch (CoreException e) {
 					problems.merge(e.getStatus());
 				}
+				StartupTrace.record("SaveManager.restore/restoreMarkers", t); //$NON-NLS-1$
+				t = StartupTrace.begin();
 				try {
 					restoreSyncInfo(workspace.getRoot(), Policy.subMonitorFor(monitor, 10));
 				} catch (CoreException e) {
 					problems.merge(e.getStatus());
 				}
+				StartupTrace.record("SaveManager.restore/restoreSyncInfo", t); //$NON-NLS-1$
 				// restore meta info last because it might close a project if its description is not readable
+				t = StartupTrace.begin();
 				restoreMetaInfo(problems, Policy.subMonitorFor(monitor, 10));
+				StartupTrace.record("SaveManager.restore/restoreMetaInfo", t); //$NON-NLS-1$
+				t = StartupTrace.begin();
 				IProject[] roots = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
 				for (IProject root : roots) {
 					((Project) root).startup();
 				}
+				StartupTrace.record("SaveManager.restore/project.startup(all)", t); //$NON-NLS-1$
 				if (!problems.isOK()) {
 					Policy.log(problems);
 				}
@@ -835,6 +852,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			}
 		} finally {
 			monitor.done();
+			StartupTrace.record("SaveManager.restore(total)", tRestore); //$NON-NLS-1$
 		}
 		if (Policy.DEBUG_RESTORE) {
 			Policy.debug("Restore workspace: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
