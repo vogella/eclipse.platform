@@ -941,7 +941,9 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		MarkerManager markerManager = workspace.getMarkerManager();
 		// when restoring a project, only load markers if it is open
 		if (resource.isAccessible()) {
+			long tRoot = StartupTrace.begin();
 			markerManager.restore(resource, generateDeltas, monitor);
+			StartupTrace.record("SaveManager.restore/restoreMarkers/readSnapshot", tRoot); //$NON-NLS-1$
 		}
 
 		// if we have the workspace root then restore markers for its projects
@@ -952,11 +954,13 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			return;
 		}
 		IProject[] projects = ((IWorkspaceRoot) resource).getProjects(IContainer.INCLUDE_HIDDEN);
+		long tLoop = StartupTrace.begin();
 		for (IProject project : projects) {
 			if (project.isAccessible()) {
 				markerManager.restore(project, generateDeltas, monitor);
 			}
 		}
+		StartupTrace.record("SaveManager.restore/restoreMarkers/readDelta(count=" + projects.length + ")", tLoop); //$NON-NLS-1$ //$NON-NLS-2$
 		if (Policy.DEBUG_RESTORE_MARKERS) {
 			Policy.debug("Restore Markers for workspace: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
@@ -995,6 +999,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		}
 		long start = System.currentTimeMillis();
 		IProject[] roots = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
+		long tLoop = StartupTrace.begin();
 		for (IProject root : roots) {
 			//fatal to throw exceptions during startup
 			try {
@@ -1004,6 +1009,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				problems.merge(new ResourceStatus(IResourceStatus.FAILED_READ_METADATA, root.getFullPath(), message, e));
 			}
 		}
+		StartupTrace.record("SaveManager.restore/restoreMetaInfo/loadMetaInfo(count=" + roots.length + ")", tLoop); //$NON-NLS-1$ //$NON-NLS-2$
 		if (Policy.DEBUG_RESTORE_METAINFO) {
 			Policy.debug("Restore workspace metainfo: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
@@ -1178,8 +1184,12 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			savedStates = Collections.synchronizedMap(new HashMap<>(10));
 			return;
 		}
+		long tOpen = StartupTrace.begin();
 		try (DataInputStream input = new DataInputStream(new SafeFileInputStream(treeLocation.toOSString(), tempLocation.toOSString(), TREE_BUFFER_SIZE))) {
+			StartupTrace.record("SaveManager.restore/restoreTree/open DataInputStream", tOpen); //$NON-NLS-1$
+			long tRead = StartupTrace.begin();
 			WorkspaceTreeReader.getReader(workspace, input.readInt()).readTree(input, monitor);
+			StartupTrace.record("SaveManager.restore/restoreTree/readTree (ElementTreeReader)", tRead); //$NON-NLS-1$
 		} catch (Exception e) { // "Unknown format" is passed as ResourceException
 			String msg = NLS.bind(Messages.resources_readMeta, treeLocation.toOSString());
 			throw new ResourceException(IResourceStatus.FAILED_READ_METADATA, treeLocation, msg, e);

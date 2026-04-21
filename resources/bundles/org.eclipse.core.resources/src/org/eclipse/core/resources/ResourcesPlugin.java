@@ -25,6 +25,7 @@ import java.lang.management.ManagementFactory;
 import java.util.Hashtable;
 import java.util.List;
 import org.eclipse.core.internal.resources.Workspace;
+import org.eclipse.core.internal.runtime.StartupTrace;
 import org.eclipse.core.internal.utils.Messages;
 import org.eclipse.core.internal.utils.Policy;
 import org.eclipse.core.runtime.CoreException;
@@ -549,20 +550,28 @@ public final class ResourcesPlugin extends Plugin {
 	 */
 	@Override
 	public void start(BundleContext context) throws Exception {
+		long tTotal = StartupTrace.begin();
+		long tSuper = StartupTrace.begin();
 		super.start(context);
+		StartupTrace.record("ResourcesPlugin.start/super.start", tSuper); //$NON-NLS-1$
 		workspaceInitCustomizer = new WorkspaceInitCustomizer(context);
 		// register debug options listener
+		long tDbg = StartupTrace.begin();
 		Hashtable<String, String> properties = new Hashtable<>(2);
 		properties.put(DebugOptions.LISTENER_SYMBOLICNAME, PI_RESOURCES);
 		debugRegistration = context.registerService(DebugOptionsListener.class, Policy.RESOURCES_DEBUG_OPTIONS_LISTENER,
 				properties);
+		StartupTrace.record("ResourcesPlugin.start/registerDebugOptions", tDbg); //$NON-NLS-1$
 		instanceLocationTracker = new ServiceTracker<>(context,
 				context.createFilter(String.format("(&%s(%s=*))", Location.INSTANCE_FILTER, //$NON-NLS-1$
 						Location.SERVICE_PROPERTY_URL)),
 				workspaceInitCustomizer);
 		plugin = this; // must before open the tracker, as this can cause the registration of the
 						// workspace and this might trigger code that calls the static method then.
+		long tOpen = StartupTrace.begin();
 		instanceLocationTracker.open();
+		StartupTrace.record("ResourcesPlugin.start/openInstanceLocationTracker", tOpen); //$NON-NLS-1$
+		StartupTrace.record("ResourcesPlugin.start (total)", tTotal); //$NON-NLS-1$
 	}
 
 	private final class WorkspaceInitCustomizer implements ServiceTrackerCustomizer<Location, Workspace> {
