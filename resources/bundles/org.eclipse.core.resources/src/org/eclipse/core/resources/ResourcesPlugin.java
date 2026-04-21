@@ -588,20 +588,26 @@ public final class ResourcesPlugin extends Plugin {
 			if (workspace != null) {
 				return null; // there can only be one workspace right now...
 			}
+			long tLoc = StartupTrace.begin();
 			Location location = context.getService(reference);
+			StartupTrace.record("ResourcesPlugin.start/openInstanceLocationTracker/open instance Location", tLoc); //$NON-NLS-1$
 			if (location == null) {
 				return null; // we can't use that service...
 			}
 			// the workspace is accessible from now on, this is because some plugins require
 			// access to it in the early startup phase
+			long tCtor = StartupTrace.begin();
 			workspace = new Workspace();
+			StartupTrace.record("ResourcesPlugin.start/openInstanceLocationTracker/new Workspace", tCtor); //$NON-NLS-1$
 			IStatus result;
 			try {
 				result = workspace.open(null);
 				if (!result.isOK()) {
 					getLog().log(result);
 				}
+				long tReg = StartupTrace.begin();
 				workspaceRegistration = context.registerService(IWorkspace.class, workspace, null);
+				StartupTrace.record("ResourcesPlugin.start/openInstanceLocationTracker/register workspace with platform", tReg); //$NON-NLS-1$
 				return workspace;
 			} catch (CoreException e) {
 				getLog().log(e.getStatus());
