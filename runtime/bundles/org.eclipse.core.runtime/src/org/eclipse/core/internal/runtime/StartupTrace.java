@@ -111,6 +111,19 @@ public final class StartupTrace {
 		ENTRIES.add(new Entry(SEQ.getAndIncrement(), phase, startNanos, end, Thread.currentThread().getName()));
 	}
 
+	/**
+	 * Records an instantaneous marker: startNs == endNs, durationUs == 0.
+	 * Useful for checkpoints like "startup complete" where the timestamp is
+	 * what matters, not a duration.
+	 */
+	public static void mark(String phase) {
+		if (!ENABLED) {
+			return;
+		}
+		long now = System.nanoTime();
+		ENTRIES.add(new Entry(SEQ.getAndIncrement(), phase, now, now, Thread.currentThread().getName()));
+	}
+
 	/** Convenience: time a Runnable. */
 	public static void time(String phase, Runnable r) {
 		if (!ENABLED) {
