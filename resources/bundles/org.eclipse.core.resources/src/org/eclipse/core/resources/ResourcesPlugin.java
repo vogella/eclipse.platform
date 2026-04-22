@@ -568,7 +568,8 @@ public final class ResourcesPlugin extends Plugin {
 	private final class WorkspaceInitCustomizer implements ServiceTrackerCustomizer<Location, Workspace> {
 		private final BundleContext context;
 		private volatile Workspace workspace;
-		private ServiceRegistration<IWorkspace> workspaceRegistration;
+		private volatile ServiceRegistration<IWorkspace> workspaceRegistration;
+		private volatile Job workspaceRegistrationJob;
 
 		private WorkspaceInitCustomizer(BundleContext context) {
 			this.context = context;
@@ -592,7 +593,27 @@ public final class ResourcesPlugin extends Plugin {
 				if (!result.isOK()) {
 					getLog().log(result);
 				}
-				workspaceRegistration = context.registerService(IWorkspace.class, workspace, null);
+				// Publish IWorkspace asynchronously: registerService dispatches
+				// ServiceEvent.REGISTERED synchronously to every
+				// ServiceTracker<IWorkspace> listener, and several of them
+				// (e.g. save-participant registrations) do non-trivial work
+				// that would otherwise block the startup critical path.
+				// Static callers using ResourcesPlugin.getWorkspace() are
+				// unaffected since it reads the field directly.
+				Job job = Job.create("Register IWorkspace service", (IProgressMonitor monitor) -> { //$NON-NLS-1$
+					Workspace ws = workspace;
+					if (ws != null) {
+						try {
+							workspaceRegistration = context.registerService(IWorkspace.class, ws, null);
+						} catch (IllegalStateException e) {
+							// bundle context became invalid during shutdown
+						}
+					}
+					return Status.OK_STATUS;
+				});
+				job.setSystem(true);
+				workspaceRegistrationJob = job;
+				job.schedule();
 				return workspace;
 			} catch (CoreException e) {
 				getLog().log(e.getStatus());
@@ -611,10 +632,21 @@ public final class ResourcesPlugin extends Plugin {
 		@Override
 		public void removedService(ServiceReference<Location> reference, Workspace service) {
 			if (service == workspace) {
-				try {
-					workspaceRegistration.unregister();
-				} catch (RuntimeException e) {
-					getLog().log(Status.warning("Unregistering workspaces throws an exception", e)); //$NON-NLS-1$
+				Job job = workspaceRegistrationJob;
+				if (job != null) {
+					try {
+						job.join();
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
+				}
+				ServiceRegistration<IWorkspace> registration = workspaceRegistration;
+				if (registration != null) {
+					try {
+						registration.unregister();
+					} catch (RuntimeException e) {
+						getLog().log(Status.warning("Unregistering workspaces throws an exception", e)); //$NON-NLS-1$
+					}
 				}
 				try {
 					service.close(null);
