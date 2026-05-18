@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2025 IBM Corporation and others.
+ * Copyright (c) 2000, 2026 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -24,6 +24,11 @@
  *     Latha Patil (ETAS GmbH) - Issue #504 Show number of differences in the Compare editor
  *******************************************************************************/
 package org.eclipse.compare.contentmergeviewer;
+
+import static org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_BACKGROUND_COLOR;
+import static org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_BACKGROUND_DEFAULT_COLOR;
+import static org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_FOREGROUND_COLOR;
+import static org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SELECTION_FOREGROUND_DEFAULT_COLOR;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
@@ -1870,6 +1875,24 @@ public class TextMergeViewer extends ContentMergeViewer implements IAdaptable {
 			fRight.setForegroundColor(fgColor);
 		}
 
+		Color selectionBackgroundColor = getSelectionBackgroundColor();
+		Color selectionForegroundColor = getSelectionForegroundColor();
+		StyledText ancestorSourceViewerWidget = getAncestorSourceViewerWidget();
+		if (ancestorSourceViewerWidget != null) {
+			ancestorSourceViewerWidget.setSelectionBackground(selectionBackgroundColor);
+			ancestorSourceViewerWidget.setSelectionForeground(selectionForegroundColor);
+		}
+		StyledText leftSourceViewerWidget = getLeftSourceViewerWidget();
+		if (leftSourceViewerWidget != null) {
+			leftSourceViewerWidget.setSelectionBackground(selectionBackgroundColor);
+			leftSourceViewerWidget.setSelectionForeground(selectionForegroundColor);
+		}
+		StyledText rightSourceViewerWidget = getRightSourceViewerWidget();
+		if (rightSourceViewerWidget != null) {
+			rightSourceViewerWidget.setSelectionBackground(selectionBackgroundColor);
+			rightSourceViewerWidget.setSelectionForeground(selectionForegroundColor);
+		}
+
 		ColorRegistry registry= JFaceResources.getColorRegistry();
 
 		RGB bg= getBackground(display);
@@ -1888,6 +1911,51 @@ public class TextMergeViewer extends ContentMergeViewer implements IAdaptable {
 
 
 		updatePresentation();
+	}
+
+	private StyledText getAncestorSourceViewerWidget() {
+		if (fAncestor == null) {
+			return null;
+		}
+		SourceViewer sourceViewer = fAncestor.getSourceViewer();
+		if (sourceViewer == null) {
+			return null;
+		}
+		return sourceViewer.getTextWidget();
+	}
+
+	private StyledText getLeftSourceViewerWidget() {
+		if (fLeft == null) {
+			return null;
+		}
+		SourceViewer sourceViewer = fLeft.getSourceViewer();
+		if (sourceViewer == null) {
+			return null;
+		}
+		return sourceViewer.getTextWidget();
+	}
+
+	private StyledText getRightSourceViewerWidget() {
+		if (fRight == null) {
+			return null;
+		}
+		SourceViewer sourceViewer = fRight.getSourceViewer();
+		if (sourceViewer == null) {
+			return null;
+		}
+		return sourceViewer.getTextWidget();
+	}
+
+	private Color getSelectionBackgroundColor() {
+		RGB rgb = fPreferenceStore.getBoolean(EDITOR_SELECTION_BACKGROUND_DEFAULT_COLOR) ? null
+				: PreferenceConverter.getColor(fPreferenceStore, EDITOR_SELECTION_BACKGROUND_COLOR);
+		return getColor(rgb);
+	}
+
+	private Color getSelectionForegroundColor() {
+		RGB rgb = fPreferenceStore.getBoolean(EDITOR_SELECTION_FOREGROUND_DEFAULT_COLOR) ? null
+				: PreferenceConverter.getColor(fPreferenceStore, EDITOR_SELECTION_FOREGROUND_COLOR);
+		return getColor(rgb);
 	}
 
 	private void updatePresentation() {
@@ -4226,6 +4294,12 @@ public class TextMergeViewer extends ContentMergeViewer implements IAdaptable {
 			boolean b= fPreferenceStore.getBoolean(ComparePreferencePage.SYNCHRONIZE_SCROLLING);
 			setSyncScrolling(b);
 
+		} else if (key.equals(EDITOR_SELECTION_BACKGROUND_DEFAULT_COLOR)
+				|| key.equals(EDITOR_SELECTION_BACKGROUND_COLOR)
+				|| key.equals(EDITOR_SELECTION_FOREGROUND_DEFAULT_COLOR)
+				|| key.equals(EDITOR_SELECTION_FOREGROUND_COLOR)) {
+			updateColors(null);
+
 		} else if (key.equals(AbstractTextEditor.PREFERENCE_COLOR_BACKGROUND)) {
 			if (!fIsUsingSystemBackground) {
 				setBackgroundColor(createColor(fPreferenceStore, AbstractTextEditor.PREFERENCE_COLOR_BACKGROUND));
@@ -4522,11 +4596,13 @@ public class TextMergeViewer extends ContentMergeViewer implements IAdaptable {
 
 				fLeft.getLineRange(diff.getPosition(LEFT_CONTRIBUTOR), region);
 				region.x -= fLeft.getDocumentRegionOffset();
+				int diffLines = region.y;
 				int ly = getHeightBetweenLines(fLeft, 0, region.x) + lshift;
 				int lh = getHeightBetweenLines(fLeft, region.x, region.x + region.y);
 
 				fRight.getLineRange(diff.getPosition(RIGHT_CONTRIBUTOR), region);
 				region.x -= fRight.getDocumentRegionOffset();
+				diffLines = Math.max(diffLines, region.y);
 				int ry = getHeightBetweenLines(fRight, 0, region.x) + rshift;
 				int rh = getHeightBetweenLines(fRight, region.x, region.x + region.y);
 
@@ -4579,7 +4655,7 @@ public class TextMergeViewer extends ContentMergeViewer implements IAdaptable {
 					}
 				}
 
-				if (fUseSingleLine && isAnySideEditable()) {
+				if ((fUseSingleLine || diffLines >= 5) && isAnySideEditable()) {
 					// draw resolve state
 					int cx= (w-RESOLVE_SIZE)/2;
 					int cy= ((ly+lh/2) + (ry+rh/2) - RESOLVE_SIZE)/2;
