@@ -66,6 +66,7 @@ import org.eclipse.core.internal.localstore.SafeChunkyInputStream;
 import org.eclipse.core.internal.localstore.SafeChunkyOutputStream;
 import org.eclipse.core.internal.localstore.SafeFileInputStream;
 import org.eclipse.core.internal.localstore.SafeFileOutputStream;
+import org.eclipse.core.internal.runtime.StartupTrace;
 import org.eclipse.core.internal.utils.IStringPoolParticipant;
 import org.eclipse.core.internal.utils.Messages;
 import org.eclipse.core.internal.utils.Policy;
@@ -790,6 +791,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	 * which were open when it was last saved.
 	 */
 	protected void restore(IProgressMonitor monitor) throws CoreException {
+		long tRestore = StartupTrace.begin();
 		if (Policy.DEBUG_RESTORE) {
 			Policy.debug("Restore workspace: starting..."); //$NON-NLS-1$
 		}
@@ -804,29 +806,44 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				String msg = Messages.resources_startupProblems;
 				MultiStatus problems = new MultiStatus(ResourcesPlugin.PI_RESOURCES, IResourceStatus.FAILED_READ_METADATA, msg, null);
 
+				long t;
+				t = StartupTrace.begin();
 				restoreMasterTable();
+				StartupTrace.record("SaveManager.restore/restoreMasterTable", t); //$NON-NLS-1$
 				// restore the saved tree and overlay the snapshots if any
+				t = StartupTrace.begin();
 				restoreTree(Policy.subMonitorFor(monitor, 10));
+				StartupTrace.record("SaveManager.restore/restoreTree", t); //$NON-NLS-1$
+				t = StartupTrace.begin();
 				restoreSnapshots(Policy.subMonitorFor(monitor, 10));
+				StartupTrace.record("SaveManager.restore/restoreSnapshots", t); //$NON-NLS-1$
 
 				// tolerate failure for non-critical information
 				// if startup fails, the entire workspace is shot
+				t = StartupTrace.begin();
 				try {
 					restoreMarkers(workspace.getRoot(), false, Policy.subMonitorFor(monitor, 10));
 				} catch (CoreException e) {
 					problems.merge(e.getStatus());
 				}
+				StartupTrace.record("SaveManager.restore/restoreMarkers", t); //$NON-NLS-1$
+				t = StartupTrace.begin();
 				try {
 					restoreSyncInfo(workspace.getRoot(), Policy.subMonitorFor(monitor, 10));
 				} catch (CoreException e) {
 					problems.merge(e.getStatus());
 				}
+				StartupTrace.record("SaveManager.restore/restoreSyncInfo", t); //$NON-NLS-1$
 				// restore meta info last because it might close a project if its description is not readable
+				t = StartupTrace.begin();
 				restoreMetaInfo(problems, Policy.subMonitorFor(monitor, 10));
+				StartupTrace.record("SaveManager.restore/restoreMetaInfo", t); //$NON-NLS-1$
+				t = StartupTrace.begin();
 				IProject[] roots = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
 				for (IProject root : roots) {
 					((Project) root).startup();
 				}
+				StartupTrace.record("SaveManager.restore/project.startup(all)", t); //$NON-NLS-1$
 				if (!problems.isOK()) {
 					Policy.log(problems);
 				}
@@ -835,6 +852,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			}
 		} finally {
 			monitor.done();
+			StartupTrace.record("SaveManager.restore(total)", tRestore); //$NON-NLS-1$
 		}
 		if (Policy.DEBUG_RESTORE) {
 			Policy.debug("Restore workspace: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
@@ -923,7 +941,9 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		MarkerManager markerManager = workspace.getMarkerManager();
 		// when restoring a project, only load markers if it is open
 		if (resource.isAccessible()) {
+			long tRoot = StartupTrace.begin();
 			markerManager.restore(resource, generateDeltas, monitor);
+			StartupTrace.record("SaveManager.restore/restoreMarkers/readSnapshot", tRoot); //$NON-NLS-1$
 		}
 
 		// if we have the workspace root then restore markers for its projects
@@ -934,11 +954,13 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			return;
 		}
 		IProject[] projects = ((IWorkspaceRoot) resource).getProjects(IContainer.INCLUDE_HIDDEN);
+		long tLoop = StartupTrace.begin();
 		for (IProject project : projects) {
 			if (project.isAccessible()) {
 				markerManager.restore(project, generateDeltas, monitor);
 			}
 		}
+		StartupTrace.record("SaveManager.restore/restoreMarkers/readDelta(count=" + projects.length + ")", tLoop); //$NON-NLS-1$ //$NON-NLS-2$
 		if (Policy.DEBUG_RESTORE_MARKERS) {
 			Policy.debug("Restore Markers for workspace: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
@@ -977,6 +999,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		}
 		long start = System.currentTimeMillis();
 		IProject[] roots = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
+		long tLoop = StartupTrace.begin();
 		for (IProject root : roots) {
 			//fatal to throw exceptions during startup
 			try {
@@ -986,6 +1009,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				problems.merge(new ResourceStatus(IResourceStatus.FAILED_READ_METADATA, root.getFullPath(), message, e));
 			}
 		}
+		StartupTrace.record("SaveManager.restore/restoreMetaInfo/loadMetaInfo(count=" + roots.length + ")", tLoop); //$NON-NLS-1$ //$NON-NLS-2$
 		if (Policy.DEBUG_RESTORE_METAINFO) {
 			Policy.debug("Restore workspace metainfo: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
@@ -1160,8 +1184,12 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			savedStates = Collections.synchronizedMap(new HashMap<>(10));
 			return;
 		}
+		long tOpen = StartupTrace.begin();
 		try (DataInputStream input = new DataInputStream(new SafeFileInputStream(treeLocation.toOSString(), tempLocation.toOSString(), TREE_BUFFER_SIZE))) {
+			StartupTrace.record("SaveManager.restore/restoreTree/open DataInputStream", tOpen); //$NON-NLS-1$
+			long tRead = StartupTrace.begin();
 			WorkspaceTreeReader.getReader(workspace, input.readInt()).readTree(input, monitor);
+			StartupTrace.record("SaveManager.restore/restoreTree/readTree (ElementTreeReader)", tRead); //$NON-NLS-1$
 		} catch (Exception e) { // "Unknown format" is passed as ResourceException
 			String msg = NLS.bind(Messages.resources_readMeta, treeLocation.toOSString());
 			throw new ResourceException(IResourceStatus.FAILED_READ_METADATA, treeLocation, msg, e);

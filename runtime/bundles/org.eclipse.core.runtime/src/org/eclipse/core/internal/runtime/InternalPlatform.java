@@ -705,17 +705,31 @@ public final class InternalPlatform {
 	 * Note: the content type manager must be initialized only after the registry has been created
 	 */
 	public void start(BundleContext runtimeContext) {
+		long tStart = StartupTrace.begin();
 		this.context = runtimeContext;
 		this.fwkWiring = runtimeContext.getBundle(Constants.SYSTEM_BUNDLE_LOCATION).adapt(FrameworkWiring.class);
+		long tTrackers = StartupTrace.begin();
 		openOSGiTrackers();
+		StartupTrace.record("InternalPlatform.start/openOSGiTrackers", tTrackers); //$NON-NLS-1$
 		splashEnded = false;
+		long tCmdLine = StartupTrace.begin();
 		processCommandLine(getEnvironmentInfoService().getNonFrameworkArgs());
+		StartupTrace.record("InternalPlatform.start/processCommandLine", tCmdLine); //$NON-NLS-1$
+		long tDebug = StartupTrace.begin();
 		initializeDebugFlags();
+		StartupTrace.record("InternalPlatform.start/initializeDebugFlags", tDebug); //$NON-NLS-1$
 		initialized = true;
 		stopped = false;
+		long tAuth = StartupTrace.begin();
 		initializeAuthorizationHandler();
+		StartupTrace.record("InternalPlatform.start/initializeAuthorizationHandler", tAuth); //$NON-NLS-1$
+		long tSsl = StartupTrace.begin();
 		initializeSSLContext();
+		StartupTrace.record("InternalPlatform.start/initializeSSLContext", tSsl); //$NON-NLS-1$
+		long tSvc = StartupTrace.begin();
 		startServices();
+		StartupTrace.record("InternalPlatform.start/startServices", tSvc); //$NON-NLS-1$
+		StartupTrace.record("InternalPlatform.start", tStart); //$NON-NLS-1$
 	}
 
 	/**
@@ -733,19 +747,46 @@ public final class InternalPlatform {
 	}
 
 	private void openOSGiTrackers() {
+		long t;
+		t = StartupTrace.begin();
 		instanceLocation = createOpenTracker(Location.INSTANCE_FILTER);
+		StartupTrace.record("openOSGiTrackers/instanceLocation", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		userLocation = createOpenTracker(Location.USER_FILTER);
+		StartupTrace.record("openOSGiTrackers/userLocation", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		configurationLocation = createOpenTracker(Location.CONFIGURATION_FILTER);
+		StartupTrace.record("openOSGiTrackers/configurationLocation", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		installLocation = createOpenTracker(Location.INSTALL_FILTER);
+		StartupTrace.record("openOSGiTrackers/installLocation", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		logTracker = createOpenTracker(FrameworkLog.class);
+		StartupTrace.record("openOSGiTrackers/FrameworkLog", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		platformTracker = createOpenTracker(PlatformAdmin.class);
+		StartupTrace.record("openOSGiTrackers/PlatformAdmin", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		contentTracker = createOpenTracker(IContentTypeManager.class);
+		StartupTrace.record("openOSGiTrackers/IContentTypeManager", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		preferencesTracker = createOpenTracker(IPreferencesService.class);
+		StartupTrace.record("openOSGiTrackers/IPreferencesService", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		groupProviderTracker = createOpenTracker("(objectClass=" + IBundleGroupProvider.class.getName() + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+		StartupTrace.record("openOSGiTrackers/IBundleGroupProvider", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		logReaderTracker = createOpenTracker(ExtendedLogReaderService.class);
+		StartupTrace.record("openOSGiTrackers/ExtendedLogReaderService", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		extendedLogTracker = createOpenTracker(ExtendedLogService.class);
+		StartupTrace.record("openOSGiTrackers/ExtendedLogService", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		environmentTracker = createOpenTracker(EnvironmentInfo.class);
+		StartupTrace.record("openOSGiTrackers/EnvironmentInfo", t); //$NON-NLS-1$
+		t = StartupTrace.begin();
 		debugTracker = createOpenTracker(DebugOptions.class);
+		StartupTrace.record("openOSGiTrackers/DebugOptions", t); //$NON-NLS-1$
 	}
 
 	private <T> ServiceTracker<T, T> createOpenTracker(String filterStr) {
