@@ -25,5 +25,6 @@
   
   <modules>
     <module>org.eclipse.ui.examples.filesystem</module>
+    <module>org.eclipse.ui.examples.buildmonitor</module>
   </modules>
 </project>
