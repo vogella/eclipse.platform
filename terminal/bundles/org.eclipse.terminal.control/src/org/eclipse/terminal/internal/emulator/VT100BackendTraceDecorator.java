@@ -216,4 +216,22 @@ public class VT100BackendTraceDecorator implements IVT100EmulatorBackend {
 		fWriter.println("eraseCharacters(" + n + ")"); //$NON-NLS-1$ //$NON-NLS-2$
 		fBackend.eraseCharacters(n);
 	}
+
+	@Override
+	public void setAlternateScreen(boolean enable) {
+		fWriter.println("setAlternateScreen(" + enable + ")"); //$NON-NLS-1$ //$NON-NLS-2$
+		fBackend.setAlternateScreen(enable);
+	}
+
+	@Override
+	public void saveCursor() {
+		fWriter.println("saveCursor()"); //$NON-NLS-1$
+		fBackend.saveCursor();
+	}
+
+	@Override
+	public void restoreCursor() {
+		fWriter.println("restoreCursor()"); //$NON-NLS-1$
+		fBackend.restoreCursor();
+	}
 }

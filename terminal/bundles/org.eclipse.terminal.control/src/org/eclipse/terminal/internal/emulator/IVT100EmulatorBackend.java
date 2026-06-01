@@ -234,4 +234,35 @@ public interface IVT100EmulatorBackend {
 	 * @param n  number of characters to replace
 	 */
 	void eraseCharacters(int n);
+
+	/**
+	 * Switches between the normal screen buffer and the alternate screen buffer
+	 * (DEC private modes 47, 1047 and 1049).
+	 * <p>
+	 * When the alternate screen is enabled the current normal screen, including its
+	 * scroll-back history, is saved and a cleared screen without scroll-back is shown.
+	 * Disabling the alternate screen restores the previously saved normal screen and
+	 * its history. This matches the behavior of full screen terminal applications
+	 * (such as editors or full screen command line tools), which expect the content
+	 * present before they were started to reappear once they exit.
+	 *
+	 * @param enable <code>true</code> to switch to the alternate screen,
+	 *            <code>false</code> to switch back to the normal screen.
+	 */
+	void setAlternateScreen(boolean enable);
+
+	/**
+	 * Saves the current cursor position (DEC private modes 1048 and 1049).
+	 *
+	 * @see #restoreCursor()
+	 */
+	void saveCursor();
+
+	/**
+	 * Restores the cursor position saved by {@link #saveCursor()} (DEC private modes
+	 * 1048 and 1049).
+	 *
+	 * @see #saveCursor()
+	 */
+	void restoreCursor();
 }

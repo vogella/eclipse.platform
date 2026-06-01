@@ -16,6 +16,7 @@ package org.eclipse.terminal.internal.emulator;
 
 import org.eclipse.terminal.model.ITerminalTextData;
 import org.eclipse.terminal.model.TerminalStyle;
+import org.eclipse.terminal.model.TerminalTextDataFactory;
 
 /**
  * @noextend This class is not intended to be subclassed by clients.
@@ -94,6 +95,16 @@ public class VT100EmulatorBackend implements IVT100EmulatorBackend {
 	final private ITerminalTextData fTerminal;
 	private boolean fVT100LineWrapping;
 	private ScrollRegion fScrollRegion = ScrollRegion.FULL_WINDOW;
+
+	/** <code>true</code> while the alternate screen buffer is shown. */
+	private boolean fAlternateScreen;
+	/** Holds the normal screen (including its scroll-back) while the alternate screen is shown. */
+	private final ITerminalTextData fSavedScreen = TerminalTextDataFactory.makeTerminalTextData();
+	/** Scroll-back limit of the normal screen, saved while the alternate screen is shown. */
+	private int fSavedMaxHeight;
+	/** Cursor position saved by {@link #saveCursor()}, relative to the visible screen. */
+	private int fSavedCursorLine;
+	private int fSavedCursorColumn;
 
 	public VT100EmulatorBackend(ITerminalTextData terminal) {
 		fTerminal = terminal;
@@ -478,6 +489,58 @@ public class VT100EmulatorBackend implements IVT100EmulatorBackend {
 			fScrollRegion = ScrollRegion.FULL_WINDOW;
 		} else if (top < bottom) {
 			fScrollRegion = new ScrollRegion(top, bottom);
+		}
+	}
+
+	@Override
+	public void setAlternateScreen(boolean enable) {
+		synchronized (fTerminal) {
+			if (enable == fAlternateScreen) {
+				return; // already in the requested buffer
+			}
+			fAlternateScreen = enable;
+			fScrollRegion = ScrollRegion.FULL_WINDOW;
+			if (enable) {
+				// Save the normal screen (with its scroll-back) and switch to a cleared
+				// alternate screen that does not accumulate any scroll-back history.
+				fSavedScreen.copy(fTerminal);
+				fSavedMaxHeight = fTerminal.getMaxHeight();
+				fTerminal.setMaxHeight(fLines);
+				fTerminal.setDimensions(fLines, fColumns);
+				for (int line = 0; line < fLines; line++) {
+					fTerminal.cleanLine(line);
+				}
+				setStyle(getDefaultStyle());
+				setCursor(0, 0);
+			} else {
+				// Restore the saved normal screen and its scroll-back limit.
+				fTerminal.setMaxHeight(fSavedMaxHeight);
+				fTerminal.copy(fSavedScreen);
+				// copy() does not notify the snapshots, so force a full refresh of the
+				// restored content. A scroll by 0 lines leaves the content untouched but
+				// marks every line as changed.
+				int height = fTerminal.getHeight();
+				if (height > 0) {
+					fTerminal.scroll(0, height, 0);
+				}
+				// Re-sync the relative cursor with the restored (absolute) model cursor.
+				setCursor(fTerminal.getCursorLine() - (height - fLines), fTerminal.getCursorColumn());
+			}
+		}
+	}
+
+	@Override
+	public void saveCursor() {
+		synchronized (fTerminal) {
+			fSavedCursorLine = fCursorLine;
+			fSavedCursorColumn = fCursorColumn;
+		}
+	}
+
+	@Override
+	public void restoreCursor() {
+		synchronized (fTerminal) {
+			setCursor(fSavedCursorLine, fSavedCursorColumn);
 		}
 	}
 

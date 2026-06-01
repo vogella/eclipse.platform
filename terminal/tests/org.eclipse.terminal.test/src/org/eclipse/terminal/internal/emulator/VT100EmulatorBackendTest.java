@@ -977,4 +977,114 @@ public class VT100EmulatorBackendTest {
 		vt100.eraseCharacters(2);
 		assertEqualsTerm("aaaa\n" + "bcde\n" + "1  4\n" + "5678", toMultiLineText(term));
 	}
+
+	@Test
+	public void testAlternateScreenShowsClearedScreen() {
+		ITerminalTextData term = makeITerminalTextData();
+		IVT100EmulatorBackend vt100 = makeBakend(term);
+		vt100.setDimensions(3, 4);
+		// three visible lines plus three lines of scroll-back history
+		fill(term, "0000\n" + "1111\n" + "2222\n" + "3333\n" + "4444\n" + "5555");
+
+		vt100.setAlternateScreen(true);
+
+		// the alternate screen is exactly the visible size and starts cleared
+		assertEquals(3, term.getHeight());
+		assertEqualsTerm("    \n" + "    \n" + "    ", toMultiLineText(term));
+		assertEquals(0, vt100.getCursorLine());
+		assertEquals(0, vt100.getCursorColumn());
+	}
+
+	@Test
+	public void testAlternateScreenRestoresNormalScreenWithHistory() {
+		ITerminalTextData term = makeITerminalTextData();
+		IVT100EmulatorBackend vt100 = makeBakend(term);
+		vt100.setDimensions(3, 4);
+		String normal = "0000\n" + "1111\n" + "2222\n" + "3333\n" + "4444\n" + "5555";
+		fill(term, normal);
+
+		vt100.setAlternateScreen(true);
+		// draw something into the alternate screen
+		vt100.setCursor(1, 0);
+		vt100.appendString("XXXX");
+
+		vt100.setAlternateScreen(false);
+
+		// the normal screen, including its scroll-back history, is restored unchanged
+		assertEquals(6, term.getHeight());
+		assertEqualsTerm(normal, toMultiLineText(term));
+	}
+
+	@Test
+	public void testAlternateScreenHasNoScrollBack() {
+		ITerminalTextData term = makeITerminalTextData();
+		IVT100EmulatorBackend vt100 = makeBakend(term);
+		vt100.setDimensions(3, 4);
+		fill(term, "0000\n" + "1111\n" + "2222\n" + "3333\n" + "4444\n" + "5555");
+
+		vt100.setAlternateScreen(true);
+		assertEquals(3, term.getHeight());
+
+		// a newline at the bottom of the alternate screen scrolls instead of growing history
+		vt100.setCursor(2, 0);
+		vt100.processNewline();
+		assertEquals(3, term.getHeight());
+	}
+
+	@Test
+	public void testSetAlternateScreenIsIdempotent() {
+		ITerminalTextData term = makeITerminalTextData();
+		IVT100EmulatorBackend vt100 = makeBakend(term);
+		vt100.setDimensions(3, 4);
+		String normal = "0000\n" + "1111\n" + "2222";
+		fill(term, normal);
+
+		// leaving the alternate screen when it was never entered is a no-op
+		vt100.setAlternateScreen(false);
+		assertEqualsTerm(normal, toMultiLineText(term));
+
+		vt100.setAlternateScreen(true);
+		vt100.setCursor(0, 0);
+		vt100.appendString("ZZZZ");
+		// entering again must not overwrite the saved normal screen
+		vt100.setAlternateScreen(true);
+		vt100.setAlternateScreen(false);
+		assertEqualsTerm(normal, toMultiLineText(term));
+	}
+
+	@Test
+	public void testSaveAndRestoreCursor() {
+		ITerminalTextData term = makeITerminalTextData();
+		IVT100EmulatorBackend vt100 = makeBakend(term);
+		vt100.setDimensions(5, 5);
+
+		vt100.setCursor(3, 2);
+		vt100.saveCursor();
+		vt100.setCursor(0, 0);
+		assertEquals(0, vt100.getCursorLine());
+		assertEquals(0, vt100.getCursorColumn());
+
+		vt100.restoreCursor();
+		assertEquals(3, vt100.getCursorLine());
+		assertEquals(2, vt100.getCursorColumn());
+	}
+
+	@Test
+	public void testAlternateScreenRestoresCursor() {
+		ITerminalTextData term = makeITerminalTextData();
+		IVT100EmulatorBackend vt100 = makeBakend(term);
+		vt100.setDimensions(5, 5);
+		fill(term, "00000\n" + "11111\n" + "22222\n" + "33333\n" + "44444");
+
+		// emulate the CSI ?1049h / CSI ?1049l pair used by full screen applications
+		vt100.setCursor(2, 3);
+		vt100.saveCursor();
+		vt100.setAlternateScreen(true);
+		assertEquals(0, vt100.getCursorLine());
+
+		vt100.setAlternateScreen(false);
+		vt100.restoreCursor();
+		assertEquals(2, vt100.getCursorLine());
+		assertEquals(3, vt100.getCursorColumn());
+	}
 }
