@@ -50,6 +50,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.SocketException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -85,6 +86,7 @@ import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -92,6 +94,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.terminal.connector.ITerminalConnector;
@@ -113,6 +116,7 @@ import org.eclipse.terminal.internal.textcanvas.PollingTextCanvasModel;
 import org.eclipse.terminal.internal.textcanvas.TextCanvas;
 import org.eclipse.terminal.internal.textcanvas.TextLineRenderer;
 import org.eclipse.terminal.model.ITerminalTextData;
+import org.eclipse.terminal.model.ITerminalTextDataReadOnly;
 import org.eclipse.terminal.model.ITerminalTextDataSnapshot;
 import org.eclipse.terminal.model.TerminalColor;
 import org.eclipse.terminal.model.TerminalTextDataFactory;
@@ -165,6 +169,15 @@ public class VT100TerminalControl implements ITerminalControlForText, ITerminalC
 	private final EditActionAccelerators editActionAccelerators = new EditActionAccelerators();
 
 	private boolean fApplicationCursorKeys;
+
+	/** The active xterm mouse reporting mode, set by the emulator from the connected application. */
+	private volatile MouseReporting.Mode fMouseReportingMode = MouseReporting.Mode.NONE;
+	/** Whether the SGR encoding (DEC private mode 1006) is used for reported mouse events. */
+	private volatile boolean fMouseReportingSgr;
+	/** The number of visible terminal lines, used to map model coordinates to screen-relative ones. */
+	private volatile int fVisibleRows;
+	/** The SWT button currently held down (0 if none), used to report drag motion. */
+	private int fPressedMouseButton;
 
 	/**
 	 * Listens to changes in the preferences
@@ -765,7 +778,10 @@ public class VT100TerminalControl implements ITerminalControlForText, ITerminalC
 				new TextLineRenderer(() -> fCtlText, fPollingTextCanvasModel));
 
 		fCtlText.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-		fCtlText.addResizeHandler((lines, columns) -> fTerminalText.setDimensions(lines, columns));
+		fCtlText.addResizeHandler((lines, columns) -> {
+			fVisibleRows = lines;
+			fTerminalText.setDimensions(lines, columns);
+		});
 		fCtlText.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseUp(MouseEvent e) {
@@ -776,8 +792,111 @@ public class VT100TerminalControl implements ITerminalControlForText, ITerminalC
 			}
 		});
 
+		setupMouseReporting();
+
 		fDisplay = getCtlText().getDisplay();
 		fClipboard = new Clipboard(fDisplay);
+	}
+
+	/**
+	 * Wires the mouse listeners that forward mouse gestures to the connected application while it has
+	 * enabled mouse reporting. While reporting is inactive these listeners do nothing and the default
+	 * text selection and scrolling behavior applies.
+	 */
+	private void setupMouseReporting() {
+		fCtlText.setMouseReportingActive(() -> fMouseReportingMode != MouseReporting.Mode.NONE);
+		// Button press and release (cell coordinates are provided by the canvas).
+		fCtlText.addTerminalMouseListener(new ITerminalMouseListener() {
+			@Override
+			public void mouseDown(ITerminalTextDataReadOnly terminalText, int line, int column, int button,
+					int stateMask) {
+				fPressedMouseButton = button;
+				reportMouse(MouseReporting.EventType.PRESS, button, line, column, stateMask);
+			}
+
+			@Override
+			public void mouseUp(ITerminalTextDataReadOnly terminalText, int line, int column, int button,
+					int stateMask) {
+				reportMouse(MouseReporting.EventType.RELEASE, button, line, column, stateMask);
+				fPressedMouseButton = 0;
+			}
+		});
+		// Motion (only forwarded in the button-event and any-event modes).
+		fCtlText.addMouseMoveListener(e -> {
+			if (fMouseReportingMode == MouseReporting.Mode.NONE) {
+				return;
+			}
+			Point cell = fCtlText.getCell(e.x, e.y);
+			if (cell != null) {
+				reportMouse(MouseReporting.EventType.MOVE, fPressedMouseButton, cell.y, cell.x, e.stateMask);
+			}
+		});
+		// Mouse wheel. When reporting is active the wheel is sent to the application instead of
+		// scrolling the local scroll-back, matching the behavior of other terminals.
+		fCtlText.addListener(SWT.MouseWheel, this::reportMouseWheel);
+	}
+
+	private void reportMouseWheel(Event e) {
+		if (fMouseReportingMode == MouseReporting.Mode.NONE || (e.stateMask & SWT.SHIFT) != 0 || e.count == 0) {
+			return; // let the default scroll-back scrolling happen
+		}
+		Point cell = fCtlText.getCell(e.x, e.y);
+		if (cell == null) {
+			return;
+		}
+		MouseReporting.EventType type = e.count > 0 ? MouseReporting.EventType.WHEEL_UP
+				: MouseReporting.EventType.WHEEL_DOWN;
+		if (reportMouse(type, 0, cell.y, cell.x, e.stateMask)) {
+			e.doit = false; // consumed, do not scroll the viewport
+		}
+	}
+
+	/**
+	 * Encodes and sends a mouse event to the connected application.
+	 *
+	 * @param type the kind of event.
+	 * @param button the SWT mouse button.
+	 * @param modelLine the line in model coordinates (including scroll-back).
+	 * @param modelColumn the column in model coordinates.
+	 * @param stateMask the SWT modifier state mask.
+	 * @return <code>true</code> if the event was reported to the application.
+	 */
+	private boolean reportMouse(MouseReporting.EventType type, int button, int modelLine, int modelColumn,
+			int stateMask) {
+		MouseReporting.Mode mode = fMouseReportingMode;
+		if (mode == MouseReporting.Mode.NONE || (stateMask & SWT.SHIFT) != 0) {
+			return false; // reporting off, or Shift forces local handling
+		}
+		// Translate the model line (which includes the scroll-back) to a screen-relative line.
+		int rows = fVisibleRows;
+		int screenLine = modelLine;
+		if (rows > 0) {
+			screenLine = modelLine - (fTerminalModel.getHeight() - rows);
+			if (screenLine < 0 || screenLine >= rows) {
+				return false; // outside the visible screen (e.g. in the scroll-back)
+			}
+		}
+		boolean held = fPressedMouseButton != 0;
+		String sequence = MouseReporting.encode(mode, fMouseReportingSgr, type, button, modelColumn, screenLine,
+				stateMask, held);
+		if (sequence == null) {
+			return false;
+		}
+		sendMouseSequence(sequence);
+		return true;
+	}
+
+	private void sendMouseSequence(String sequence) {
+		try {
+			OutputStream os = getOutputStream();
+			if (os != null) {
+				// Mouse sequences are raw bytes; ISO-8859-1 maps the classic encoding's high bytes 1:1.
+				os.write(sequence.getBytes(StandardCharsets.ISO_8859_1));
+				os.flush();
+			}
+		} catch (IOException e) {
+			Logger.logException(e);
+		}
 	}
 
 	protected void setupListeners() {
@@ -1394,6 +1513,16 @@ public class VT100TerminalControl implements ITerminalControlForText, ITerminalC
 	@Override
 	public void enableApplicationCursorKeys(boolean enable) {
 		fApplicationCursorKeys = enable;
+	}
+
+	@Override
+	public void setMouseReportingMode(MouseReporting.Mode mode) {
+		fMouseReportingMode = mode;
+	}
+
+	@Override
+	public void setMouseReportingSgr(boolean enable) {
+		fMouseReportingSgr = enable;
 	}
 
 	@Override

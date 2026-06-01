@@ -23,6 +23,7 @@ import org.junit.platform.suite.api.Suite;
 @SelectClasses({ //
 		VT100EmulatorBackendTest.class, //
 		VT100EmulatorTest.class, //
+		MouseReportingTest.class, //
 })
 public class AllTestSuite {
 

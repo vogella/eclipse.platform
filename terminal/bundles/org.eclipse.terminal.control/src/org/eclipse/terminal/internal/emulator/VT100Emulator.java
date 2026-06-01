@@ -492,6 +492,8 @@ public class VT100Emulator implements ControlListener {
 		text.setScrollRegion(-1, -1);
 		text.setInsertMode(false);
 		terminal.enableApplicationCursorKeys(false);
+		terminal.setMouseReportingMode(MouseReporting.Mode.NONE);
+		terminal.setMouseReportingSgr(false);
 	}
 
 	/**
@@ -1284,6 +1286,22 @@ public class VT100Emulator implements ControlListener {
 			text.saveCursor();
 			text.setAlternateScreen(true);
 			break;
+		case 1000:
+			// X11 mouse reporting: report button press and release
+			terminal.setMouseReportingMode(MouseReporting.Mode.NORMAL);
+			break;
+		case 1002:
+			// Button-event mouse tracking: additionally report motion while a button is held
+			terminal.setMouseReportingMode(MouseReporting.Mode.BUTTON_EVENT);
+			break;
+		case 1003:
+			// Any-event mouse tracking: additionally report motion without a button held
+			terminal.setMouseReportingMode(MouseReporting.Mode.ANY_EVENT);
+			break;
+		case 1006:
+			// Use the SGR encoding for mouse reporting
+			terminal.setMouseReportingSgr(true);
+			break;
 		default:
 			Logger.log("Unsupported command parameter: CSI ?" + param + 'h'); //$NON-NLS-1$
 			break;
@@ -1310,6 +1328,16 @@ public class VT100Emulator implements ControlListener {
 			// Use Normal Screen Buffer and restore cursor position
 			text.setAlternateScreen(false);
 			text.restoreCursor();
+			break;
+		case 1000:
+		case 1002:
+		case 1003:
+			// Disable mouse reporting
+			terminal.setMouseReportingMode(MouseReporting.Mode.NONE);
+			break;
+		case 1006:
+			// Disable the SGR encoding for mouse reporting
+			terminal.setMouseReportingSgr(false);
 			break;
 		default:
 			Logger.log("Unsupported command parameter: CSI ?" + param + 'l'); //$NON-NLS-1$

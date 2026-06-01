@@ -17,6 +17,7 @@ import java.io.OutputStream;
 import org.eclipse.terminal.connector.ITerminalConnector;
 import org.eclipse.terminal.connector.TerminalState;
 import org.eclipse.terminal.control.TerminalTitleRequestor;
+import org.eclipse.terminal.internal.emulator.MouseReporting;
 
 /**
  * need a better name!
@@ -46,5 +47,19 @@ public interface ITerminalControlForText {
 	 * @param enable
 	 */
 	void enableApplicationCursorKeys(boolean enable);
+
+	/**
+	 * Sets the active xterm mouse reporting mode (DEC private modes 1000, 1002 and 1003).
+	 *
+	 * @param mode the reporting mode, or {@link MouseReporting.Mode#NONE} to disable mouse reporting.
+	 */
+	void setMouseReportingMode(MouseReporting.Mode mode);
+
+	/**
+	 * Enables or disables the SGR mouse reporting encoding (DEC private mode 1006).
+	 *
+	 * @param enable <code>true</code> to use the SGR encoding for reported mouse events.
+	 */
+	void setMouseReportingSgr(boolean enable);
 
 }

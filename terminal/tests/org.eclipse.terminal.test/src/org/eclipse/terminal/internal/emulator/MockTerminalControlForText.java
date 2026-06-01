@@ -60,4 +60,14 @@ public class MockTerminalControlForText implements ITerminalControlForText {
 
 	}
 
+	@Override
+	public void setMouseReportingMode(MouseReporting.Mode mode) {
+		// no-op for tests
+	}
+
+	@Override
+	public void setMouseReportingSgr(boolean enable) {
+		// no-op for tests
+	}
+
 }

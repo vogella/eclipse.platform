@@ -26,6 +26,7 @@ package org.eclipse.terminal.internal.textcanvas;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.Map;
 
 import org.eclipse.swt.SWT;
@@ -62,6 +63,11 @@ public class TextCanvas extends GridCanvas {
 	private ResizeListener fResizeListener;
 	private final List<ITerminalMouseListener> fMouseListeners;
 	private SelectionMode fSelMode = SelectionMode.NONE;
+	/**
+	 * Tells whether mouse reporting is active. While active, mouse gestures are forwarded to the
+	 * connected application instead of being used for local text selection (unless Shift is held).
+	 */
+	private BooleanSupplier fMouseReportingActive = () -> false;
 
 	private enum SelectionMode {
 		NONE, DRAG, WORD, LINE
@@ -157,7 +163,9 @@ public class TextCanvas extends GridCanvas {
 						for (ITerminalMouseListener l : fMouseListeners) {
 							l.mouseDoubleClick(fCellCanvasModel.getTerminalText(), pt.y, pt.x, e.button, e.stateMask);
 						}
-						selectWord(pt);
+						if (!isMouseReportingActive(e)) {
+							selectWord(pt);
+						}
 					}
 				}
 			}
@@ -192,7 +200,7 @@ public class TextCanvas extends GridCanvas {
 
 			@Override
 			public void mouseDown(MouseEvent e) {
-				if (e.button == 1) { // left button
+				if (e.button == 1 && !isMouseReportingActive(e)) { // left button
 					fSelMode = SelectionMode.DRAG;
 					fDraggingStart = screenPointToCell(e.x, e.y);
 					fHasSelection = false;
@@ -214,7 +222,7 @@ public class TextCanvas extends GridCanvas {
 						}
 					}
 				}
-				if (e.count == 3) {
+				if (e.count == 3 && !isMouseReportingActive(e)) {
 					selectLine(e);
 				}
 			}
@@ -683,6 +691,34 @@ public class TextCanvas extends GridCanvas {
 
 	public void addTerminalMouseListener(final ITerminalMouseListener listener) {
 		fMouseListeners.add(listener);
+	}
+
+	/**
+	 * Sets the predicate that tells whether the connected application has requested mouse reporting.
+	 * While it returns <code>true</code>, mouse gestures (except when Shift is held) are forwarded to
+	 * the application instead of being used for local text selection.
+	 *
+	 * @param active the predicate, must not be <code>null</code>.
+	 */
+	public void setMouseReportingActive(BooleanSupplier active) {
+		fMouseReportingActive = active;
+	}
+
+	/**
+	 * Returns whether the given mouse event should be forwarded to the application rather than used
+	 * for local text selection. Holding Shift always keeps the gesture local.
+	 */
+	private boolean isMouseReportingActive(MouseEvent e) {
+		return fMouseReportingActive.getAsBoolean() && (e.stateMask & SWT.SHIFT) == 0;
+	}
+
+	/**
+	 * Converts a pixel position on the canvas into terminal cell coordinates.
+	 *
+	 * @return a point whose x is the column and y is the line, in model coordinates.
+	 */
+	public Point getCell(int screenX, int screenY) {
+		return screenPointToCell(screenX, screenY);
 	}
 
 	public void removeTerminalMouseListener(ITerminalMouseListener listener) {
