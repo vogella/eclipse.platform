@@ -137,6 +137,10 @@ public final class CompareMessages extends NLS {
 	public static String UnifiedDiff_openTwoWayCompare_tooltip;
 	public static String UnifiedDiff_preparing;
 	public static String UnifiedDiff_computing;
+	public static String UnifiedDiff_showUnchangedLine;
+	public static String UnifiedDiff_showUnchangedLines;
+	public static String UnifiedDiff_hideUnchangedLine;
+	public static String UnifiedDiff_hideUnchangedLines;
 
 	static {
 		NLS.initializeMessages(BUNDLE_NAME, CompareMessages.class);
