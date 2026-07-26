@@ -65,6 +65,7 @@ import org.eclipse.core.internal.properties.PropertyManager2;
 import org.eclipse.core.internal.refresh.RefreshManager;
 import org.eclipse.core.internal.resources.ComputeProjectOrder.Digraph;
 import org.eclipse.core.internal.resources.ComputeProjectOrder.VertexOrder;
+import org.eclipse.core.internal.runtime.StartupTrace;
 import org.eclipse.core.internal.utils.BitMask;
 import org.eclipse.core.internal.utils.Messages;
 import org.eclipse.core.internal.utils.Policy;
@@ -2342,6 +2343,7 @@ public class Workspace extends PlatformObject implements IWorkspace, ICoreConsta
 	 * @see ResourcesPlugin#getWorkspace()
 	 */
 	public IStatus open(IProgressMonitor monitor) throws CoreException {
+		long tOpen = StartupTrace.begin();
 		if (!localMetaArea.hasSavedWorkspace()) {
 			localMetaArea.createMetaArea();
 		}
@@ -2359,29 +2361,42 @@ public class Workspace extends PlatformObject implements IWorkspace, ICoreConsta
 
 		// Set explicit workspace encoding if no projects exist in the workspace
 		if (!localMetaArea.hasSavedProjects()) {
+			long tEnc = StartupTrace.begin();
 			setExplicitWorkspaceEncoding();
+			StartupTrace.record("Workspace.open/setExplicitWorkspaceEncoding", tEnc); //$NON-NLS-1$
 		}
+		long tPrefOrder = StartupTrace.begin();
 		initializePreferenceLookupOrder();
+		StartupTrace.record("Workspace.open/initializePreferenceLookupOrder", tPrefOrder); //$NON-NLS-1$
 
 		// create root location
 		localMetaArea.locationFor(getRoot()).toFile().mkdirs();
 
+		long tStartup = StartupTrace.begin();
 		startup(new NullProgressMonitor());
+		StartupTrace.record("Workspace.open/startup", tStartup); //$NON-NLS-1$
 		// restart the notification manager so it is initialized with the right tree
+		long tNotif = StartupTrace.begin();
 		notificationManager.startup(null);
+		StartupTrace.record("Workspace.open/notificationManager.startup(restart)", tNotif); //$NON-NLS-1$
 		openFlag = true;
 		if (crashed || refreshRequested()) {
+			long tRefresh = StartupTrace.begin();
 			try {
 				refreshManager.refresh(getRoot());
 			} catch (RuntimeException e) {
+				StartupTrace.record("Workspace.open/crashRecoveryRefresh", tRefresh); //$NON-NLS-1$
+				StartupTrace.record("Workspace.open", tOpen); //$NON-NLS-1$
 				//don't fail entire open if refresh failed, just report as warning
 				return new ResourceStatus(IResourceStatus.INTERNAL_ERROR, IPath.ROOT,
 						Messages.resources_errorMultiRefresh, e);
 			}
+			StartupTrace.record("Workspace.open/crashRecoveryRefresh", tRefresh); //$NON-NLS-1$
 		}
 		//finally register a string pool participant
 		stringPoolJob = new StringPoolJob();
 		stringPoolJob.addStringPoolParticipant(saveManager, getRoot());
+		StartupTrace.record("Workspace.open", tOpen); //$NON-NLS-1$
 		return Status.OK_STATUS;
 	}
 
@@ -2654,45 +2669,76 @@ public class Workspace extends PlatformObject implements IWorkspace, ICoreConsta
 	 * Starts all the workspace manager classes.
 	 */
 	protected void startup(IProgressMonitor monitor) throws CoreException {
+		long tAll = StartupTrace.begin();
 		// ensure the tree is locked during the startup notification
 		try {
+			long t;
+			t = StartupTrace.begin();
 			_workManager = new WorkManager(this);
 			_workManager.startup(null);
+			StartupTrace.record("Workspace.startup/WorkManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			fileSystemManager = new FileSystemResourceManager(this);
 			fileSystemManager.startup(monitor);
+			StartupTrace.record("Workspace.startup/FileSystemResourceManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			pathVariableManager = new PathVariableManager();
 			pathVariableManager.startup(null);
+			StartupTrace.record("Workspace.startup/PathVariableManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			natureManager = new NatureManager(this);
 			natureManager.startup(null);
+			StartupTrace.record("Workspace.startup/NatureManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			filterManager = new FilterTypeManager();
 			filterManager.startup(null);
+			StartupTrace.record("Workspace.startup/FilterTypeManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			buildManager = new BuildManager(this, getWorkManager().getLock());
 			buildManager.startup(null);
+			StartupTrace.record("Workspace.startup/BuildManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			notificationManager = new NotificationManager(this);
 			notificationManager.startup(null);
+			StartupTrace.record("Workspace.startup/NotificationManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			markerManager = new MarkerManager(this);
 			markerManager.startup(null);
+			StartupTrace.record("Workspace.startup/MarkerManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			synchronizer = new Synchronizer(this);
 			saveManager = new SaveManager(this);
 			saveManager.startup(null);
+			StartupTrace.record("Workspace.startup/SaveManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			propertyManager = new PropertyManager2(this);
 			propertyManager.startup(monitor);
+			StartupTrace.record("Workspace.startup/PropertyManager2", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			charsetManager = new CharsetManager(this);
 			charsetManager.startup(null);
+			StartupTrace.record("Workspace.startup/CharsetManager", t); //$NON-NLS-1$
+			t = StartupTrace.begin();
 			contentDescriptionManager = new ContentDescriptionManager(this);
 			contentDescriptionManager.startup(null);
+			StartupTrace.record("Workspace.startup/ContentDescriptionManager", t); //$NON-NLS-1$
 			//must start after save manager, because (read) access to tree is needed
 			//must start after other managers to avoid potential cyclic dependency on uninitialized managers (see bug 316182)
 			//must start before alias manager (see bug 94829)
+			t = StartupTrace.begin();
 			refreshManager = new RefreshManager(this);
 			refreshManager.startup(null);
+			StartupTrace.record("Workspace.startup/RefreshManager", t); //$NON-NLS-1$
 			//must start at the end to avoid potential cyclic dependency on other uninitialized managers (see bug 369177)
+			t = StartupTrace.begin();
 			aliasManager = new AliasManager(this);
 			aliasManager.startup(null);
+			StartupTrace.record("Workspace.startup/AliasManager", t); //$NON-NLS-1$
 		} finally {
 			//unlock tree even in case of failure, otherwise shutdown will also fail
 			treeLocked = null;
 			_workManager.postWorkspaceStartup();
+			StartupTrace.record("Workspace.startup(total)", tAll); //$NON-NLS-1$
 		}
 	}
 

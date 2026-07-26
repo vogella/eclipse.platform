@@ -25,6 +25,7 @@ import java.lang.management.ManagementFactory;
 import java.util.Hashtable;
 import java.util.List;
 import org.eclipse.core.internal.resources.Workspace;
+import org.eclipse.core.internal.runtime.StartupTrace;
 import org.eclipse.core.internal.utils.Messages;
 import org.eclipse.core.internal.utils.Policy;
 import org.eclipse.core.runtime.CoreException;
@@ -549,20 +550,28 @@ public final class ResourcesPlugin extends Plugin {
 	 */
 	@Override
 	public void start(BundleContext context) throws Exception {
+		long tTotal = StartupTrace.begin();
+		long tSuper = StartupTrace.begin();
 		super.start(context);
+		StartupTrace.record("ResourcesPlugin.start/super.start", tSuper); //$NON-NLS-1$
 		workspaceInitCustomizer = new WorkspaceInitCustomizer(context);
 		// register debug options listener
+		long tDbg = StartupTrace.begin();
 		Hashtable<String, String> properties = new Hashtable<>(2);
 		properties.put(DebugOptions.LISTENER_SYMBOLICNAME, PI_RESOURCES);
 		debugRegistration = context.registerService(DebugOptionsListener.class, Policy.RESOURCES_DEBUG_OPTIONS_LISTENER,
 				properties);
+		StartupTrace.record("ResourcesPlugin.start/registerDebugOptions", tDbg); //$NON-NLS-1$
 		instanceLocationTracker = new ServiceTracker<>(context,
 				context.createFilter(String.format("(&%s(%s=*))", Location.INSTANCE_FILTER, //$NON-NLS-1$
 						Location.SERVICE_PROPERTY_URL)),
 				workspaceInitCustomizer);
 		plugin = this; // must before open the tracker, as this can cause the registration of the
 						// workspace and this might trigger code that calls the static method then.
+		long tOpen = StartupTrace.begin();
 		instanceLocationTracker.open();
+		StartupTrace.record("ResourcesPlugin.start/openInstanceLocationTracker", tOpen); //$NON-NLS-1$
+		StartupTrace.record("ResourcesPlugin.start (total)", tTotal); //$NON-NLS-1$
 	}
 
 	private final class WorkspaceInitCustomizer implements ServiceTrackerCustomizer<Location, Workspace> {
@@ -579,20 +588,26 @@ public final class ResourcesPlugin extends Plugin {
 			if (workspace != null) {
 				return null; // there can only be one workspace right now...
 			}
+			long tLoc = StartupTrace.begin();
 			Location location = context.getService(reference);
+			StartupTrace.record("ResourcesPlugin.start/openInstanceLocationTracker/open instance Location", tLoc); //$NON-NLS-1$
 			if (location == null) {
 				return null; // we can't use that service...
 			}
 			// the workspace is accessible from now on, this is because some plugins require
 			// access to it in the early startup phase
+			long tCtor = StartupTrace.begin();
 			workspace = new Workspace();
+			StartupTrace.record("ResourcesPlugin.start/openInstanceLocationTracker/new Workspace", tCtor); //$NON-NLS-1$
 			IStatus result;
 			try {
 				result = workspace.open(null);
 				if (!result.isOK()) {
 					getLog().log(result);
 				}
+				long tReg = StartupTrace.begin();
 				workspaceRegistration = context.registerService(IWorkspace.class, workspace, null);
+				StartupTrace.record("ResourcesPlugin.start/openInstanceLocationTracker/register workspace with platform", tReg); //$NON-NLS-1$
 				return workspace;
 			} catch (CoreException e) {
 				getLog().log(e.getStatus());

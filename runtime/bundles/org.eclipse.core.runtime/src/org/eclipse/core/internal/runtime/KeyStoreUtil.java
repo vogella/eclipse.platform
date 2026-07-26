@@ -53,6 +53,7 @@ public class KeyStoreUtil {
 			return;
 		}
 
+		long tTrust = StartupTrace.begin();
 		List<KeyStoreAndPassword> keyStores = new ArrayList<>();
 		// null will loads JVM cacerts OR store indicated by "javax.net.ssl.trustStore" properties
 		keyStores.add(new KeyStoreAndPassword(null, null));
@@ -68,16 +69,21 @@ public class KeyStoreUtil {
 			trustManagers.add(createX509TrustManager(storeAndPassword.keyStore()));
 		}
 		TrustManager[] tm = { new CollectionTrustManager(trustManagers) };
+		StartupTrace.record("InternalPlatform.start/initializeSSLContext/TrustManager init", tTrust);
 
+		long tKey = StartupTrace.begin();
 		KeyManager[] km = {};
 		KeyStoreAndPassword keyStore = createKeyStoreFromSystemProperties();
 		if (keyStore != null) {
 			km = new KeyManager[] { createX509KeyManager(keyStore.keyStore(), keyStore.password()) };
 		}
+		StartupTrace.record("InternalPlatform.start/initializeSSLContext/KeyManager init", tKey);
 
+		long tCtx = StartupTrace.begin();
 		SSLContext sslContext = SSLContext.getInstance("TLS");
 		initSSLContext(sslContext, tm, km, null);
 		SSLContext.setDefault(sslContext);
+		StartupTrace.record("InternalPlatform.start/initializeSSLContext/SSLContext.getDefault", tCtx);
 	}
 
 	private KeyStoreAndPassword createKeyStore(String type, String provider)
