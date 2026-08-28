@@ -134,6 +134,12 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	protected static final int DONE_SAVING = 3;
 
 	/**
+	 * A save participant slower than this is logged, so that a contribution holding up
+	 * the save on shutdown can be told apart from the platform's own work.
+	 */
+	private static final long SLOW_PARTICIPANT_THRESHOLD = 500;
+
+	/**
 	 * The minimum delay, in milliseconds, between workspace snapshots
 	 */
 	private static final long MIN_SNAPSHOT_DELAY = 1000 * 30L; //30 seconds
@@ -246,6 +252,21 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		return null;
 	}
 
+	private static String lifecycleName(int lifecycle) {
+		switch (lifecycle) {
+			case PREPARE_TO_SAVE :
+				return "prepareToSave"; //$NON-NLS-1$
+			case SAVING :
+				return "saving"; //$NON-NLS-1$
+			case DONE_SAVING :
+				return "doneSaving"; //$NON-NLS-1$
+			case ROLLBACK :
+				return "rollback"; //$NON-NLS-1$
+			default :
+				return String.valueOf(lifecycle);
+		}
+	}
+
 	protected void broadcastLifecycle(final int lifecycle, Map<String, SaveContext> contexts, final MultiStatus warnings, IProgressMonitor monitor) {
 		SubMonitor subMonitor = SubMonitor.convert(monitor, contexts.size());
 		try {
@@ -278,7 +299,13 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 						executeLifecycle(lifecycle, participant, context);
 					}
 				};
+				long start = System.currentTimeMillis();
 				SafeRunner.run(code);
+				long elapsed = System.currentTimeMillis() - start;
+				if (elapsed >= SLOW_PARTICIPANT_THRESHOLD) {
+					Policy.log(IStatus.WARNING, "Save participant " + pluginId + " took " + elapsed //$NON-NLS-1$ //$NON-NLS-2$
+							+ "ms during " + lifecycleName(lifecycle), null); //$NON-NLS-1$
+				}
 				subMonitor.worked(1);
 			}
 		} finally {
