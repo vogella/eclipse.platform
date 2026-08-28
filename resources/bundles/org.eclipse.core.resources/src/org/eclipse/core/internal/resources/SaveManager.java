@@ -1763,6 +1763,14 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	}
 
 	/**
+	 * Whether the per resource marker and sync info times are being collected. Reading
+	 * the clock for every visited resource costs more than the write it measures.
+	 */
+	private static boolean isMeasuringPersistTimes() {
+		return Policy.DEBUG_SAVE || Policy.DEBUG_SAVE_MARKERS || Policy.DEBUG_SAVE_SYNCINFO;
+	}
+
+	/**
 	 * Visit the given resource (to depth infinite) and write out extra information
 	 * like markers and sync info. To be called during a full save and project save.
 	 *
@@ -1799,6 +1807,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			// on the number of statements printed out as we would get 2 statements
 			// for each resource otherwise.
 			final long[] saveTimes = new long[2];
+			final boolean measure = isMeasuringPersistTimes();
 
 			// Create the visitor
 			IElementContentVisitor visitor = (tree, requestor, elementContents) -> {
@@ -1806,19 +1815,23 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				if (info != null) {
 					try {
 						// save the markers
-						long start = System.currentTimeMillis();
+						long start = measure ? System.currentTimeMillis() : 0;
 						markerManager.save(info, requestor, markersOutput, writtenTypes);
-						long markerSaveTime = System.currentTimeMillis() - start;
-						saveTimes[0] += markerSaveTime;
-						persistMarkers += markerSaveTime;
+						if (measure) {
+							long markerSaveTime = System.currentTimeMillis() - start;
+							saveTimes[0] += markerSaveTime;
+							persistMarkers += markerSaveTime;
+						}
 						// save the sync info - if we have the workspace root then the output stream
 						// will be null
 						if (syncInfoOutput != null) {
-							start = System.currentTimeMillis();
+							start = measure ? System.currentTimeMillis() : 0;
 							synchronizer.saveSyncInfo(info, requestor, syncInfoOutput, writtenPartners);
-							long syncInfoSaveTime = System.currentTimeMillis() - start;
-							saveTimes[1] += syncInfoSaveTime;
-							persistSyncInfo += syncInfoSaveTime;
+							if (measure) {
+								long syncInfoSaveTime = System.currentTimeMillis() - start;
+								saveTimes[1] += syncInfoSaveTime;
+								persistSyncInfo += syncInfoSaveTime;
+							}
 						}
 					} catch (IOException e) {
 						throw new WrappedRuntimeException(e);
@@ -1948,25 +1961,30 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				// on the number of statements printed out as we would get 2 statements
 				// for each resource otherwise.
 				final long[] snapTimes = new long[2];
+				final boolean measure = isMeasuringPersistTimes();
 
 				IElementContentVisitor visitor = (tree, requestor, elementContents) -> {
 					ResourceInfo info = (ResourceInfo) elementContents;
 					if (info != null) {
 						try {
 							// save the markers
-							long start = System.currentTimeMillis();
+							long start = measure ? System.currentTimeMillis() : 0;
 							markerManager.snap(info, requestor, markersOutput);
-							long markerSnapTime = System.currentTimeMillis() - start;
-							snapTimes[0] += markerSnapTime;
-							persistMarkers += markerSnapTime;
+							if (measure) {
+								long markerSnapTime = System.currentTimeMillis() - start;
+								snapTimes[0] += markerSnapTime;
+								persistMarkers += markerSnapTime;
+							}
 							// save the sync info - if we have the workspace root then the output stream
 							// will be null
 							if (syncInfoOutput != null) {
-								start = System.currentTimeMillis();
+								start = measure ? System.currentTimeMillis() : 0;
 								synchronizer.snapSyncInfo(info, requestor, syncInfoOutput);
-								long syncInfoSnapTime = System.currentTimeMillis() - start;
-								snapTimes[1] += syncInfoSnapTime;
-								persistSyncInfo += syncInfoSnapTime;
+								if (measure) {
+									long syncInfoSnapTime = System.currentTimeMillis() - start;
+									snapTimes[1] += syncInfoSnapTime;
+									persistSyncInfo += syncInfoSnapTime;
+								}
 							}
 						} catch (IOException e) {
 							throw new WrappedRuntimeException(e);
