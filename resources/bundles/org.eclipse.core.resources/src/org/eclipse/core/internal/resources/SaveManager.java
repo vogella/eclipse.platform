@@ -192,6 +192,11 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 
 	protected volatile boolean snapshotRequested;
 	private IStatus snapshotRequestor;
+
+	/**
+	 * Shared by the phases of one save operation, null outside of a save.
+	 */
+	private volatile ExecutorService projectExecutor;
 	protected Workspace workspace;
 	private Set<Entry<Object, Object>> savedState;
 	//declare debug messages as fields to get sharing
@@ -1266,6 +1271,10 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	public IStatus save(int kind, boolean keepConsistencyWhenCanceled, Project project, IProgressMonitor parentMonitor) throws CoreException {
 		InternalMonitorWrapper monitor = new InternalMonitorWrapper(parentMonitor);
 		monitor.ignoreCancelState(keepConsistencyWhenCanceled);
+		// only a workspace wide save visits all projects, and the root rule it holds keeps
+		// two of them from overlapping, so the field cannot be shared by concurrent saves
+		ExecutorService ownExecutor = project == null ? createProjectExecutor() : null;
+		projectExecutor = ownExecutor;
 		try {
 			isSaving = true;
 			String message = Messages.resources_saving_0;
@@ -1369,6 +1378,10 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			}
 		} finally {
 			isSaving = false;
+			if (ownExecutor != null) {
+				projectExecutor = null;
+				ownExecutor.shutdown();
+			}
 			monitor.done();
 		}
 	}
@@ -1885,6 +1898,20 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		void accept(T t) throws CoreException;
 	}
 
+	/**
+	 * A pool for the phases that visit every project. The threads are created lazily,
+	 * so one pool per save costs nothing when a save touches a single project.
+	 */
+	private static ExecutorService createProjectExecutor() {
+		// Never use a shared ForkJoinPool.commonPool() as it may be busy with other tasks, which might deadlock.
+		// Also use a custom ForkJoinWorkerThreadFactory, to prevent issues with a
+		// potential SecurityManager, since the threads created by it get no permissions.
+		// See https://github.com/eclipse-platform/eclipse.platform/issues/294
+		return new ForkJoinPool(ForkJoinPool.getCommonPoolParallelism(), pool -> new ForkJoinWorkerThread(pool) {
+			// anonymous subclass to access protected constructor
+		}, null, false);
+	}
+
 	private void forEachProjectInParallel(IProgressMonitor m, CoreConsumer<IProject> consumer) throws CoreException {
 		IProject[] projects = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
 		if (projects.length == 0) {
@@ -1892,14 +1919,8 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		}
 		SubMonitor subMointor = SubMonitor.convert(m, projects.length);
 		IStatus[] stats;
-		// Never use a shared ForkJoinPool.commonPool() as it may be busy with other tasks, which might deadlock.
-		// Also use a custom ForkJoinWorkerThreadFactory, to prevent issues with a
-		// potential SecurityManager, since the threads created by it get no permissions.
-		// See https://github.com/eclipse-platform/eclipse.platform/issues/294
-		ExecutorService executor = new ForkJoinPool(ForkJoinPool.getCommonPoolParallelism(),
-				pool -> new ForkJoinWorkerThread(pool) {
-					// anonymous subclass to access protected constructor
-				}, null, false);
+		ExecutorService shared = projectExecutor;
+		ExecutorService executor = shared != null ? shared : createProjectExecutor();
 		try {
 			stats = executor.submit(() -> Arrays.stream(projects).parallel().map(project -> {
 				subMointor.split(1);
@@ -1914,7 +1935,9 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			List<Runnable> notExecuted = executor.shutdownNow();
 			throw new CoreException(Status.error("Error with " + notExecuted.size() + " projects left.", e)); //$NON-NLS-1$//$NON-NLS-2$
 		} finally {
-			executor.shutdown();
+			if (shared == null) {
+				executor.shutdown();
+			}
 		}
 		if (stats.length == 1) {
 			throw new CoreException(stats[0]);
