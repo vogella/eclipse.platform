@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -48,6 +49,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -711,17 +713,15 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		removeFiles(target, candidates, valuables);
 	}
 
-	protected void removeUnusedTreeFiles() {
+	protected void removeUnusedTreeFiles() throws CoreException {
 		FilenameFilter filter = (dir, name) -> name.endsWith(LocalMetaArea.F_TREE);
 		// root resource
 		IPath location = workspace.getMetaArea().getTreeLocationFor(workspace.getRoot(), false);
 		removeUnusedTreeFiles(location, filter);
 
 		// projects
-		IProject[] projects = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
-		for (IProject project : projects) {
-			removeUnusedTreeFiles(workspace.getMetaArea().getTreeLocationFor(project, false), filter);
-		}
+		forEachProjectInParallel(null,
+				project -> removeUnusedTreeFiles(workspace.getMetaArea().getTreeLocationFor(project, false), filter));
 	}
 
 	/**
@@ -782,10 +782,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		if (resource.getType() == IResource.PROJECT) {
 			return;
 		}
-		IProject[] projects = ((IWorkspaceRoot) resource).getProjects(IContainer.INCLUDE_HIDDEN);
-		for (IProject project : projects) {
-			resetSnapshots(project);
-		}
+		forEachProjectInParallel(null, this::resetSnapshots);
 	}
 
 	/**
@@ -1418,15 +1415,16 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		// save preferences (workspace description, path variables, etc)
 		ResourcesPlugin.getPlugin().savePluginPreferences();
 		// save projects' meta info
-		IProject[] roots = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
-		for (IProject root : roots) {
-			if (root.isAccessible()) {
-				IStatus result = saveMetaInfo((Project) root, null);
+		Collection<IStatus> results = new ConcurrentLinkedQueue<>();
+		forEachProjectInParallel(null, project -> {
+			if (project.isAccessible()) {
+				IStatus result = saveMetaInfo((Project) project, null);
 				if (!result.isOK()) {
-					problems.merge(result);
+					results.add(result);
 				}
 			}
-		}
+		});
+		results.forEach(problems::merge);
 		if (Policy.DEBUG_SAVE_METAINFO) {
 			Policy.debug("Save workspace metainfo: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
