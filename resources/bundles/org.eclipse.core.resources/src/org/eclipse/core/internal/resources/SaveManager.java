@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -48,6 +49,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -132,6 +134,12 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	protected static final int DONE_SAVING = 3;
 
 	/**
+	 * A save participant slower than this is logged, so that a contribution holding up
+	 * the save on shutdown can be told apart from the platform's own work.
+	 */
+	private static final long SLOW_PARTICIPANT_THRESHOLD = 500;
+
+	/**
 	 * The minimum delay, in milliseconds, between workspace snapshots
 	 */
 	private static final long MIN_SNAPSHOT_DELAY = 1000 * 30L; //30 seconds
@@ -190,6 +198,11 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 
 	protected volatile boolean snapshotRequested;
 	private IStatus snapshotRequestor;
+
+	/**
+	 * Shared by the phases of one save operation, null outside of a save.
+	 */
+	private volatile ExecutorService projectExecutor;
 	protected Workspace workspace;
 	private Set<Entry<Object, Object>> savedState;
 	//declare debug messages as fields to get sharing
@@ -239,6 +252,21 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		return null;
 	}
 
+	private static String lifecycleName(int lifecycle) {
+		switch (lifecycle) {
+			case PREPARE_TO_SAVE :
+				return "prepareToSave"; //$NON-NLS-1$
+			case SAVING :
+				return "saving"; //$NON-NLS-1$
+			case DONE_SAVING :
+				return "doneSaving"; //$NON-NLS-1$
+			case ROLLBACK :
+				return "rollback"; //$NON-NLS-1$
+			default :
+				return String.valueOf(lifecycle);
+		}
+	}
+
 	protected void broadcastLifecycle(final int lifecycle, Map<String, SaveContext> contexts, final MultiStatus warnings, IProgressMonitor monitor) {
 		SubMonitor subMonitor = SubMonitor.convert(monitor, contexts.size());
 		try {
@@ -271,7 +299,13 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 						executeLifecycle(lifecycle, participant, context);
 					}
 				};
+				long start = System.currentTimeMillis();
 				SafeRunner.run(code);
+				long elapsed = System.currentTimeMillis() - start;
+				if (elapsed >= SLOW_PARTICIPANT_THRESHOLD) {
+					Policy.log(IStatus.WARNING, "Save participant " + pluginId + " took " + elapsed //$NON-NLS-1$ //$NON-NLS-2$
+							+ "ms during " + lifecycleName(lifecycle), null); //$NON-NLS-1$
+				}
 				subMonitor.worked(1);
 			}
 		} finally {
@@ -623,11 +657,10 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	}
 
 	/**
-	 * @see IElementInfoFlattener#readElement(IPath, DataInput)
+	 * @see IElementInfoFlattener#readElement(DataInput)
 	 */
 	@Override
-	public Object readElement(IPath path, DataInput input) throws IOException {
-		Assert.isNotNull(path);
+	public Object readElement(DataInput input) throws IOException {
 		Assert.isNotNull(input);
 		// read the flags and pull out the type.
 		int flags = input.readInt();
@@ -711,29 +744,30 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		removeFiles(target, candidates, valuables);
 	}
 
-	protected void removeUnusedTreeFiles() {
-		// root resource
-		List<String> valuables = new ArrayList<>(10);
-		IPath location = workspace.getMetaArea().getTreeLocationFor(workspace.getRoot(), false);
-		valuables.add(location.lastSegment());
-		java.io.File target = location.toFile().getParentFile();
+	protected void removeUnusedTreeFiles() throws CoreException {
 		FilenameFilter filter = (dir, name) -> name.endsWith(LocalMetaArea.F_TREE);
-		String[] candidates = target.list(filter);
-		if (candidates != null) {
-			removeFiles(target, candidates, valuables);
-		}
+		// root resource
+		IPath location = workspace.getMetaArea().getTreeLocationFor(workspace.getRoot(), false);
+		removeUnusedTreeFiles(location, filter);
 
 		// projects
-		IProject[] projects = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
-		for (IProject project : projects) {
-			location = workspace.getMetaArea().getTreeLocationFor(project, false);
-			valuables.add(location.lastSegment());
-			target = location.toFile().getParentFile();
-			candidates = target.list(filter);
-			if (candidates != null) {
-				removeFiles(target, candidates, valuables);
-			}
+		forEachProjectInParallel(null,
+				project -> removeUnusedTreeFiles(workspace.getMetaArea().getTreeLocationFor(project, false), filter));
+	}
+
+	/**
+	 * Deletes every tree file next to the given one, which is the tree file still in
+	 * use for that resource.
+	 */
+	private void removeUnusedTreeFiles(IPath treeLocation, FilenameFilter filter) {
+		java.io.File target = treeLocation.toFile().getParentFile();
+		String[] candidates = target.list(filter);
+		if (candidates == null) {
+			return;
 		}
+		List<String> valuables = new ArrayList<>(1);
+		valuables.add(treeLocation.lastSegment());
+		removeFiles(target, candidates, valuables);
 	}
 
 	protected void reportSnapshotRequestor() {
@@ -779,10 +813,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		if (resource.getType() == IResource.PROJECT) {
 			return;
 		}
-		IProject[] projects = ((IWorkspaceRoot) resource).getProjects(IContainer.INCLUDE_HIDDEN);
-		for (IProject project : projects) {
-			resetSnapshots(project);
-		}
+		forEachProjectInParallel(null, this::resetSnapshots);
 	}
 
 	/**
@@ -1266,6 +1297,10 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	public IStatus save(int kind, boolean keepConsistencyWhenCanceled, Project project, IProgressMonitor parentMonitor) throws CoreException {
 		InternalMonitorWrapper monitor = new InternalMonitorWrapper(parentMonitor);
 		monitor.ignoreCancelState(keepConsistencyWhenCanceled);
+		// only a workspace wide save visits all projects, and the root rule it holds keeps
+		// two of them from overlapping, so the field cannot be shared by concurrent saves
+		ExecutorService ownExecutor = project == null ? createProjectExecutor() : null;
+		projectExecutor = ownExecutor;
 		try {
 			isSaving = true;
 			String message = Messages.resources_saving_0;
@@ -1369,6 +1404,10 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			}
 		} finally {
 			isSaving = false;
+			if (ownExecutor != null) {
+				projectExecutor = null;
+				ownExecutor.shutdown();
+			}
 			monitor.done();
 		}
 	}
@@ -1415,15 +1454,16 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		// save preferences (workspace description, path variables, etc)
 		ResourcesPlugin.getPlugin().savePluginPreferences();
 		// save projects' meta info
-		IProject[] roots = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
-		for (IProject root : roots) {
-			if (root.isAccessible()) {
-				IStatus result = saveMetaInfo((Project) root, null);
+		Collection<IStatus> results = new ConcurrentLinkedQueue<>();
+		forEachProjectInParallel(null, project -> {
+			if (project.isAccessible()) {
+				IStatus result = saveMetaInfo((Project) project, null);
 				if (!result.isOK()) {
-					problems.merge(result);
+					results.add(result);
 				}
 			}
-		}
+		});
+		results.forEach(problems::merge);
 		if (Policy.DEBUG_SAVE_METAINFO) {
 			Policy.debug("Save workspace metainfo: " + (System.currentTimeMillis() - start) + "ms"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
@@ -1763,6 +1803,14 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	}
 
 	/**
+	 * Whether the per resource marker and sync info times are being collected. Reading
+	 * the clock for every visited resource costs more than the write it measures.
+	 */
+	private static boolean isMeasuringPersistTimes() {
+		return Policy.DEBUG_SAVE || Policy.DEBUG_SAVE_MARKERS || Policy.DEBUG_SAVE_SYNCINFO;
+	}
+
+	/**
 	 * Visit the given resource (to depth infinite) and write out extra information
 	 * like markers and sync info. To be called during a full save and project save.
 	 *
@@ -1799,6 +1847,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			// on the number of statements printed out as we would get 2 statements
 			// for each resource otherwise.
 			final long[] saveTimes = new long[2];
+			final boolean measure = isMeasuringPersistTimes();
 
 			// Create the visitor
 			IElementContentVisitor visitor = (tree, requestor, elementContents) -> {
@@ -1806,19 +1855,23 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				if (info != null) {
 					try {
 						// save the markers
-						long start = System.currentTimeMillis();
+						long start = measure ? System.currentTimeMillis() : 0;
 						markerManager.save(info, requestor, markersOutput, writtenTypes);
-						long markerSaveTime = System.currentTimeMillis() - start;
-						saveTimes[0] += markerSaveTime;
-						persistMarkers += markerSaveTime;
+						if (measure) {
+							long markerSaveTime = System.currentTimeMillis() - start;
+							saveTimes[0] += markerSaveTime;
+							persistMarkers += markerSaveTime;
+						}
 						// save the sync info - if we have the workspace root then the output stream
 						// will be null
 						if (syncInfoOutput != null) {
-							start = System.currentTimeMillis();
+							start = measure ? System.currentTimeMillis() : 0;
 							synchronizer.saveSyncInfo(info, requestor, syncInfoOutput, writtenPartners);
-							long syncInfoSaveTime = System.currentTimeMillis() - start;
-							saveTimes[1] += syncInfoSaveTime;
-							persistSyncInfo += syncInfoSaveTime;
+							if (measure) {
+								long syncInfoSaveTime = System.currentTimeMillis() - start;
+								saveTimes[1] += syncInfoSaveTime;
+								persistSyncInfo += syncInfoSaveTime;
+							}
 						}
 					} catch (IOException e) {
 						throw new WrappedRuntimeException(e);
@@ -1871,6 +1924,20 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		void accept(T t) throws CoreException;
 	}
 
+	/**
+	 * A pool for the phases that visit every project. The threads are created lazily,
+	 * so one pool per save costs nothing when a save touches a single project.
+	 */
+	private static ExecutorService createProjectExecutor() {
+		// Never use a shared ForkJoinPool.commonPool() as it may be busy with other tasks, which might deadlock.
+		// Also use a custom ForkJoinWorkerThreadFactory, to prevent issues with a
+		// potential SecurityManager, since the threads created by it get no permissions.
+		// See https://github.com/eclipse-platform/eclipse.platform/issues/294
+		return new ForkJoinPool(ForkJoinPool.getCommonPoolParallelism(), pool -> new ForkJoinWorkerThread(pool) {
+			// anonymous subclass to access protected constructor
+		}, null, false);
+	}
+
 	private void forEachProjectInParallel(IProgressMonitor m, CoreConsumer<IProject> consumer) throws CoreException {
 		IProject[] projects = workspace.getRoot().getProjects(IContainer.INCLUDE_HIDDEN);
 		if (projects.length == 0) {
@@ -1878,14 +1945,8 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 		}
 		SubMonitor subMointor = SubMonitor.convert(m, projects.length);
 		IStatus[] stats;
-		// Never use a shared ForkJoinPool.commonPool() as it may be busy with other tasks, which might deadlock.
-		// Also use a custom ForkJoinWorkerThreadFactory, to prevent issues with a
-		// potential SecurityManager, since the threads created by it get no permissions.
-		// See https://github.com/eclipse-platform/eclipse.platform/issues/294
-		ExecutorService executor = new ForkJoinPool(ForkJoinPool.getCommonPoolParallelism(),
-				pool -> new ForkJoinWorkerThread(pool) {
-					// anonymous subclass to access protected constructor
-				}, null, false);
+		ExecutorService shared = projectExecutor;
+		ExecutorService executor = shared != null ? shared : createProjectExecutor();
 		try {
 			stats = executor.submit(() -> Arrays.stream(projects).parallel().map(project -> {
 				subMointor.split(1);
@@ -1900,7 +1961,9 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 			List<Runnable> notExecuted = executor.shutdownNow();
 			throw new CoreException(Status.error("Error with " + notExecuted.size() + " projects left.", e)); //$NON-NLS-1$//$NON-NLS-2$
 		} finally {
-			executor.shutdown();
+			if (shared == null) {
+				executor.shutdown();
+			}
 		}
 		if (stats.length == 1) {
 			throw new CoreException(stats[0]);
@@ -1948,25 +2011,30 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 				// on the number of statements printed out as we would get 2 statements
 				// for each resource otherwise.
 				final long[] snapTimes = new long[2];
+				final boolean measure = isMeasuringPersistTimes();
 
 				IElementContentVisitor visitor = (tree, requestor, elementContents) -> {
 					ResourceInfo info = (ResourceInfo) elementContents;
 					if (info != null) {
 						try {
 							// save the markers
-							long start = System.currentTimeMillis();
+							long start = measure ? System.currentTimeMillis() : 0;
 							markerManager.snap(info, requestor, markersOutput);
-							long markerSnapTime = System.currentTimeMillis() - start;
-							snapTimes[0] += markerSnapTime;
-							persistMarkers += markerSnapTime;
+							if (measure) {
+								long markerSnapTime = System.currentTimeMillis() - start;
+								snapTimes[0] += markerSnapTime;
+								persistMarkers += markerSnapTime;
+							}
 							// save the sync info - if we have the workspace root then the output stream
 							// will be null
 							if (syncInfoOutput != null) {
-								start = System.currentTimeMillis();
+								start = measure ? System.currentTimeMillis() : 0;
 								synchronizer.snapSyncInfo(info, requestor, syncInfoOutput);
-								long syncInfoSnapTime = System.currentTimeMillis() - start;
-								snapTimes[1] += syncInfoSnapTime;
-								persistSyncInfo += syncInfoSnapTime;
+								if (measure) {
+									long syncInfoSnapTime = System.currentTimeMillis() - start;
+									snapTimes[1] += syncInfoSnapTime;
+									persistSyncInfo += syncInfoSnapTime;
+								}
 							}
 						} catch (IOException e) {
 							throw new WrappedRuntimeException(e);
@@ -2042,8 +2110,7 @@ public class SaveManager implements IElementInfoFlattener, IManager, IStringPool
 	}
 
 	@Override
-	public void writeElement(IPath path, Object element, DataOutput output) throws IOException {
-		Assert.isNotNull(path);
+	public void writeElement(Object element, DataOutput output) throws IOException {
 		Assert.isNotNull(element);
 		Assert.isNotNull(output);
 		ResourceInfo info = (ResourceInfo) element;
