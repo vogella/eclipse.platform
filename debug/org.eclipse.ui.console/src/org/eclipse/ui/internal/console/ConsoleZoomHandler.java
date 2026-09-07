@@ -33,6 +33,7 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IWorkbenchPart;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.console.ConsolePlugin;
 import org.eclipse.ui.console.IConsole;
 import org.eclipse.ui.console.IConsoleConstants;
@@ -152,7 +153,7 @@ public class ConsoleZoomHandler extends AbstractHandler implements IExecutableEx
 					textConsole.addPropertyChangeListener(FONT_ENFORCER);
 					ZoomState state = sZoomByType.get(typeKey(textConsole));
 					if (state != null) {
-						Display.getDefault().asyncExec(() -> applyHeight(textConsole, state.height()));
+						runOnDisplayIfAvailable(() -> applyHeight(textConsole, state.height()));
 					}
 				}
 			}
@@ -163,11 +164,27 @@ public class ConsoleZoomHandler extends AbstractHandler implements IExecutableEx
 			for (IConsole console : consoles) {
 				if (console instanceof TextConsole textConsole) {
 					textConsole.removePropertyChangeListener(FONT_ENFORCER);
-					Display.getDefault().asyncExec(() -> disposeZoomFonts(textConsole));
+					runOnDisplayIfAvailable(() -> disposeZoomFonts(textConsole));
 				}
 			}
 		}
 	};
+
+	/**
+	 * Runs the runnable on the workbench display, or skips it if no display
+	 * is available (e.g. during shutdown).
+	 * @param runnable the UI work to perform
+	 */
+	private static void runOnDisplayIfAvailable(Runnable runnable) {
+		if (!PlatformUI.isWorkbenchRunning()) {
+			return;
+		}
+		Display display = PlatformUI.getWorkbench().getDisplay();
+		if (display == null || display.isDisposed()) {
+			return;
+		}
+		display.asyncExec(runnable);
+	}
 
 	/**
 	 * Registers {@link #ZOOM_FONT_LISTENER} and loads any persisted zoom state.
@@ -434,7 +451,11 @@ public class ConsoleZoomHandler extends AbstractHandler implements IExecutableEx
 	private static void disposeZoomFonts(TextConsole textConsole) {
 		List<Font> oldFonts = fontsMap.remove(textConsole);
 		if (oldFonts != null && !oldFonts.isEmpty()) {
-			Display.getDefault().timerExec(100, () -> {
+			Display display = Display.getCurrent();
+			if (display == null || display.isDisposed()) {
+				return;
+			}
+			display.timerExec(100, () -> {
 				for (Font font : oldFonts) {
 					if (font != null && !font.isDisposed()) {
 						font.dispose();
