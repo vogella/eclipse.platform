@@ -1,6 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2002, 2005 GEBIT Gesellschaft fuer EDV-Beratung
- * und Informatik-Technologien mbH,
+ * Copyright (c) 2002, 2013 GEBIT Gesellschaft fuer EDV-Beratung und Informatik-Technologien mbH,
  * Berlin, Duesseldorf, Frankfurt (Germany) and others.
  *
  * This program and the accompanying materials
@@ -17,14 +16,13 @@
 
 package org.eclipse.ant.internal.ui.editor.text;
 
-import org.eclipse.ant.internal.ui.preferences.AntEditorPreferenceConstants;
 import org.eclipse.jface.text.rules.IRule;
 import org.eclipse.jface.text.rules.MultiLineRule;
 import org.eclipse.jface.text.rules.SingleLineRule;
 import org.eclipse.jface.text.rules.Token;
 import org.eclipse.jface.text.rules.WhitespaceRule;
 import org.eclipse.jface.util.PropertyChangeEvent;
-import org.eclipse.swt.SWT;
+import org.eclipse.ui.editors.text.SyntaxThemeConstants;
 
 /**
  * The scanner to tokenize for strings and tags
@@ -34,9 +32,7 @@ public class AntEditorTagScanner extends AbstractAntEditorScanner {
 	private final Token fStringToken;
 
 	public AntEditorTagScanner() {
-		fStringToken = new Token(createTextAttribute(IAntEditorColorConstants.STRING_COLOR, IAntEditorColorConstants.STRING_COLOR
-				+ AntEditorPreferenceConstants.EDITOR_BOLD_SUFFIX, IAntEditorColorConstants.STRING_COLOR
-				+ AntEditorPreferenceConstants.EDITOR_ITALIC_SUFFIX));
+		fStringToken = new Token(createTextAttribute(SyntaxThemeConstants.STRING_COLOR));
 
 		IRule[] rules = new IRule[3];
 
@@ -49,30 +45,16 @@ public class AntEditorTagScanner extends AbstractAntEditorScanner {
 
 		setRules(rules);
 
-		setDefaultReturnToken(new Token(createTextAttribute(IAntEditorColorConstants.TAG_COLOR, IAntEditorColorConstants.TAG_COLOR
-				+ AntEditorPreferenceConstants.EDITOR_BOLD_SUFFIX, IAntEditorColorConstants.TAG_COLOR
-				+ AntEditorPreferenceConstants.EDITOR_ITALIC_SUFFIX)));
+		setDefaultReturnToken(new Token(createTextAttribute(SyntaxThemeConstants.TAG_COLOR)));
 	}
 
 	public void adaptToPreferenceChange(PropertyChangeEvent event) {
+		// a theme other than the default one prefixes the colour id with its own id
 		String property = event.getProperty();
-		if (property.startsWith(IAntEditorColorConstants.TAG_COLOR) || property.startsWith(IAntEditorColorConstants.STRING_COLOR)) {
-			if (property.endsWith(AntEditorPreferenceConstants.EDITOR_BOLD_SUFFIX)) {
-				adaptToStyleChange(event, getTokenAffected(event), SWT.BOLD);
-			} else if (property.endsWith(AntEditorPreferenceConstants.EDITOR_ITALIC_SUFFIX)) {
-				adaptToStyleChange(event, getTokenAffected(event), SWT.ITALIC);
-			} else {
-				adaptToColorChange(event, getTokenAffected(event));
-			}
+		if (property.endsWith(SyntaxThemeConstants.STRING_COLOR)) {
+			adaptToColorChange(fStringToken, SyntaxThemeConstants.STRING_COLOR);
+		} else if (property.endsWith(SyntaxThemeConstants.TAG_COLOR)) {
+			adaptToColorChange((Token) fDefaultReturnToken, SyntaxThemeConstants.TAG_COLOR);
 		}
-	}
-
-	private Token getTokenAffected(PropertyChangeEvent event) {
-		String property = event.getProperty();
-		if (property.startsWith(IAntEditorColorConstants.STRING_COLOR)) {
-			return fStringToken;
-		}// else if (property.startsWith(IAntEditorColorConstants.TAG_COLOR)) {
-		return (Token) fDefaultReturnToken;
-		// }
 	}
 }
