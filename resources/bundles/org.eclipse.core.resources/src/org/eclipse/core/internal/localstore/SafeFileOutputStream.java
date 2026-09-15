@@ -15,6 +15,7 @@
 package org.eclipse.core.internal.localstore;
 
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
@@ -81,6 +82,19 @@ public class SafeFileOutputStream extends OutputStream {
 	protected void commit() throws IOException {
 		if (!temp.exists()) {
 			return;
+		}
+		try {
+			// a move never rewrites the bytes and leaves no partially written target behind
+			Files.move(temp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE);
+			return;
+		} catch (AtomicMoveNotSupportedException | UnsupportedOperationException e) {
+			// temp and target may sit on different file systems
+		}
+		try {
+			Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			return;
+		} catch (IOException e) {
+			// fall back to the copy below, which some file systems handle when a move fails
 		}
 		Files.copy(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		temp.delete();
